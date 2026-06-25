@@ -41,36 +41,81 @@ class CloudmonGame {
       y: 0
     };
     
-    // Encounterable Cloudmon Registry
-    this.cloudmonList = ["BigQuery", "Cloud Spanner", "Cloud Run", "GKE", "Vertex AI"];
+    // Encounterable Cloudmon Registry (All possible Dex entries)
+    this.cloudmonList = [
+      "Compute Engine", "GKE", "GKE Autopilot",
+      "Cloud SQL", "Cloud Spanner",
+      "Cloud Functions", "Cloud Run",
+      "BigQuery", "Vertex AI"
+    ];
     
+    // Wild services that spawn in overworld
+    this.wildCloudmonList = ["Compute Engine", "Cloud SQL", "Cloud Functions", "BigQuery", "Vertex AI"];
+
+    // Evolution chain mapping
+    this.evolutionMap = {
+      "Compute Engine": "GKE",
+      "GKE": "GKE Autopilot",
+      "Cloud SQL": "Cloud Spanner",
+      "Cloud Functions": "Cloud Run"
+    };
+
     // Player Inventory / Cloud-Dex (Captured Cloudmon)
     this.cloudDex = {}; // format: { "BigQuery": true, "GKE": false }
     this.cloudmonData = {
       "BigQuery": {
         name: "BigQuery",
+        pillar: "AI & Analytics",
         desc: "Serverless data warehouse. Runs SQL queries across petabytes of logs in seconds. Columnar storage architecture allows rapid analytics without infrastructure management.",
         launchYear: "2011"
       },
       "Cloud Spanner": {
         name: "Cloud Spanner",
+        pillar: "Storage & DB",
         desc: "Enterprise relational database. Combines absolute SQL transaction consistency (ACID) with global, horizontal scale-out. Backed by synchronized atomic clocks.",
         launchYear: "2012"
       },
       "Cloud Run": {
         name: "Cloud Run",
+        pillar: "Compute",
         desc: "Fully managed serverless container runtime. Scales containers to zero automatically. Perfect for stateless APIs and microservices without cluster maintenance.",
         launchYear: "2019"
       },
       "GKE": {
         name: "GKE",
+        pillar: "Compute",
         desc: "Google Kubernetes Engine. The gold standard for managed container orchestrations. Features rapid scaling, secure networking, and hands-off Autopilot mode.",
         launchYear: "2015"
       },
       "Vertex AI": {
         name: "Vertex AI",
+        pillar: "AI & Analytics",
         desc: "Unified Machine Learning and GenAI suite. Hosts foundation models like Gemini, coordinates pipelines, stores features, and serves low-latency inferences.",
         launchYear: "2021"
+      },
+      "Compute Engine": {
+        name: "Compute Engine",
+        pillar: "Compute",
+        desc: "Secure, customizable virtual machine instances in Google's global data centers. Offers fine-grained control over OS, CPU, RAM, and block storage.",
+        launchYear: "2012"
+      },
+      "GKE Autopilot": {
+        name: "GKE Autopilot",
+        pillar: "Compute",
+        desc: "Fully managed Kubernetes cluster deployment mode. Google manages node provisioning, scaling, health, and security upgrades automatically.",
+        launchYear: "2020"
+      },
+      "Cloud SQL": {
+        name: "Cloud SQL",
+        pillar: "Storage & DB",
+        desc: "Fully managed relational database service supporting MySQL, PostgreSQL, and SQL Server with automatic patching, backups, and failover replication.",
+        launchYear: "2011"
+      },
+      "Cloud Functions": {
+        name: "Cloud Functions",
+        pillar: "Compute",
+        desc: "Event-driven serverless Function-as-a-Service (FaaS). Executes modular code snippets dynamically in response to web requests or cloud event streams.",
+        launchYear: "2017"
       }
     };
     
@@ -88,7 +133,15 @@ class CloudmonGame {
       substate: 'INTRO', // 'INTRO', 'MENU', 'QUESTION', 'EXPLANATION', 'CAP_SUCCESS', 'CAP_FAIL'
       menuSelection: 0, // 0: Capture, 1: Run
       explanationText: "",
-      correctCount: 0
+      correctCount: 0,
+      cliCharges: {
+        gcloud: 1,
+        kubectl: 1,
+        terraform: 1
+      },
+      cliSelection: 0,
+      logsRevealed: false,
+      eliminatedOptions: []
     };
     
     // Screen Transition effects
@@ -97,6 +150,31 @@ class CloudmonGame {
     
     // Keys pressed
     this.keys = {};
+
+    // Pillar color configurations for Color Retro mode
+    this.pillarThemes = {
+      "Compute": {
+        accentColor: "#4285f4", // GCP Blue
+        platformBg: "rgba(66, 133, 244, 0.18)",
+        borderCol: "#4285f4",
+        badgeBg: "rgba(66, 133, 244, 0.15)",
+        badgeBorder: "rgba(66, 133, 244, 0.3)"
+      },
+      "Storage & DB": {
+        accentColor: "#34a853", // GCP Green
+        platformBg: "rgba(52, 168, 83, 0.18)",
+        borderCol: "#34a853",
+        badgeBg: "rgba(52, 168, 83, 0.15)",
+        badgeBorder: "rgba(52, 168, 83, 0.3)"
+      },
+      "AI & Analytics": {
+        accentColor: "#a142f4", // Vertex Purple
+        platformBg: "rgba(161, 66, 244, 0.18)",
+        borderCol: "#a142f4",
+        badgeBg: "rgba(161, 66, 244, 0.15)",
+        badgeBorder: "rgba(161, 66, 244, 0.3)"
+      }
+    };
     
     // Dialogue box variables
     this.dialogueText = "";
@@ -215,7 +293,7 @@ class CloudmonGame {
 
       if (this.state === 'BATTLE') {
         if (this.battle.substate === 'INTRO' || this.battle.substate === 'EXPLANATION' || 
-            this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL') {
+            this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL' || this.battle.substate === 'CON_RECOVERY') {
           // Click anywhere in dialog box to progress
           if (clickY >= 260) {
             this.handleBattleInput('Enter');
@@ -230,13 +308,27 @@ class CloudmonGame {
               this.clickBattleOption(1);
             }
           }
+        } else if (this.battle.substate === 'CLI_MENU') {
+          if (clickY >= 310 && clickY < 400) {
+            const index = Math.floor((clickY - 310) / 22);
+            if (index >= 0 && index < 4) {
+              this.battle.cliSelection = index;
+              this.selectCliCommand();
+            }
+          }
         } else if (this.battle.substate === 'QUESTION') {
           if (clickY >= 320) { // Options grid area
             const col = clickX < 240 ? 0 : 1;
             const row = clickY < 370 ? 0 : 1;
             const index = row * 2 + col;
-            this.battle.selectedOptionIdx = index;
-            this.submitAnswer();
+            
+            // Check if option was eliminated by terraform
+            if (!this.battle.eliminatedOptions || !this.battle.eliminatedOptions.includes(index)) {
+              this.battle.selectedOptionIdx = index;
+              this.submitAnswer();
+            } else {
+              soundSystem.playWrongBuzz();
+            }
           }
         }
       } else if (this.state === 'GAMEOVER' || this.state === 'VICTORY') {
@@ -467,9 +559,20 @@ class CloudmonGame {
   startBattle() {
     this.state = 'BATTLE';
     
-    // Choose a random Cloudmon that hasn't been captured yet, or random if all captured
-    let available = this.cloudmonList.filter(m => !this.cloudDex[m]);
-    if (available.length === 0) available = this.cloudmonList;
+    // Choose a random wild Cloudmon that hasn't been captured/evolved yet
+    let available = this.wildCloudmonList.filter(m => {
+      if (m === "Compute Engine") {
+        return !this.cloudDex["Compute Engine"] && !this.cloudDex["GKE"] && !this.cloudDex["GKE Autopilot"];
+      }
+      if (m === "Cloud SQL") {
+        return !this.cloudDex["Cloud SQL"] && !this.cloudDex["Cloud Spanner"];
+      }
+      if (m === "Cloud Functions") {
+        return !this.cloudDex["Cloud Functions"] && !this.cloudDex["Cloud Run"];
+      }
+      return !this.cloudDex[m];
+    });
+    if (available.length === 0) available = this.wildCloudmonList;
     
     const chosenName = available[Math.floor(Math.random() * available.length)];
     
@@ -483,8 +586,119 @@ class CloudmonGame {
     this.battle.substate = 'INTRO';
     this.battle.menuSelection = 0;
     this.battle.correctCount = 0;
+    this.battle.cliCharges = { gcloud: 1, kubectl: 1, terraform: 1 };
+    this.battle.cliSelection = 0;
+    this.battle.logsRevealed = false;
+    this.battle.eliminatedOptions = [];
+    delete this.battle.baseCloudmon;
+    delete this.battle.evolvedCloudmon;
     
     this.addTextLog(`🔥 ENCOUNTER: Wild ${chosenName} appeared on the network port!`);
+  }
+
+  startEvolutionBattle(baseName, evolvedName) {
+    this.state = 'BATTLE';
+    
+    // Load the special evolution question from evolutionQuestions
+    const q = evolutionQuestions[baseName];
+    
+    this.battle.cloudmon = evolvedName; // we show the evolved version facing them
+    this.battle.questions = [q]; // only 1 question for evolution
+    this.battle.currentQuestionIdx = 0;
+    this.battle.selectedOptionIdx = 0;
+    this.battle.substate = 'EVO_INTRO';
+    this.battle.baseCloudmon = baseName;
+    this.battle.evolvedCloudmon = evolvedName;
+    this.battle.correctCount = 0;
+    this.battle.cliCharges = { gcloud: 1, kubectl: 1, terraform: 1 };
+    this.battle.cliSelection = 0;
+    this.battle.logsRevealed = false;
+    this.battle.eliminatedOptions = [];
+    
+    soundSystem.playEncounter();
+    this.addTextLog(`⚙️ MODERNIZATION: Initiated upgrade checklist for ${baseName} -> ${evolvedName}!`);
+  }
+
+  openCliMenu() {
+    this.battle.substate = 'CLI_MENU';
+    this.battle.cliSelection = 0;
+    
+    // Pause timer interval
+    if (this.battle.timerIntervalId) {
+      clearInterval(this.battle.timerIntervalId);
+      this.battle.timerIntervalId = null;
+    }
+  }
+
+  closeCliMenu() {
+    this.battle.substate = 'QUESTION';
+    
+    // Resume timer interval
+    if (this.battle.timerIntervalId) clearInterval(this.battle.timerIntervalId);
+    this.battle.timerIntervalId = setInterval(() => {
+      this.battle.timer--;
+      if (this.battle.timer <= 0) {
+        clearInterval(this.battle.timerIntervalId);
+        this.submitTimeOut();
+      }
+    }, 1000);
+  }
+
+  selectCliCommand() {
+    const sel = this.battle.cliSelection;
+    if (sel === 0) {
+      // gcloud auth login
+      if (this.battle.cliCharges.gcloud > 0) {
+        this.battle.cliCharges.gcloud = 0;
+        this.player.quota = Math.min(this.player.maxQuota, this.player.quota + 1);
+        soundSystem.playCorrectChime();
+        this.updateUI();
+        this.addTextLog(`[CLI] Run: gcloud auth login. Authenticated developer. Restored 1 Quota HP.`);
+      } else {
+        soundSystem.playWrongBuzz();
+      }
+    } else if (sel === 1) {
+      // kubectl logs
+      if (this.battle.cliCharges.kubectl > 0) {
+        this.battle.cliCharges.kubectl = 0;
+        this.battle.logsRevealed = true;
+        this.battle.timer = Math.max(1, this.battle.timer - 5);
+        soundSystem.playCorrectChime();
+        this.addTextLog(`[CLI] Run: kubectl logs. Pulled stdout logs. Answer index highlighted. Cost: 5s.`);
+        this.closeCliMenu();
+      } else {
+        soundSystem.playWrongBuzz();
+      }
+    } else if (sel === 2) {
+      // terraform apply
+      if (this.battle.cliCharges.terraform > 0) {
+        this.battle.cliCharges.terraform = 0;
+        soundSystem.playCorrectChime();
+        
+        // Eliminate 2 wrong choices
+        const q = this.battle.questions[this.battle.currentQuestionIdx];
+        const correct = q.correctAnswer;
+        
+        const wrongIndices = [0, 1, 2, 3].filter(idx => idx !== correct);
+        // Shuffle wrong indices and take 2
+        const shuffled = wrongIndices.sort(() => 0.5 - Math.random());
+        this.battle.eliminatedOptions = shuffled.slice(0, 2);
+        
+        // Ensure selection cursor is not on an eliminated option
+        if (this.battle.eliminatedOptions.includes(this.battle.selectedOptionIdx)) {
+          this.battle.selectedOptionIdx = correct;
+        }
+        
+        this.addTextLog(`[CLI] Run: terraform apply. Orchestrated state: eliminated 2 wrong choices.`);
+        this.closeCliMenu();
+      } else {
+        soundSystem.playWrongBuzz();
+      }
+    } else if (sel === 3) {
+      // BACK
+      soundSystem.playWalk();
+      this.closeCliMenu();
+    }
   }
 
   // --- BATTLE ENGINE & QUIZ FLOW ---
@@ -494,6 +708,11 @@ class CloudmonGame {
       if (key === 'Enter' || key === ' ') {
         this.battle.substate = 'MENU';
         soundSystem.playWalk();
+      }
+    } else if (this.battle.substate === 'EVO_INTRO') {
+      if (key === 'Enter' || key === ' ') {
+        soundSystem.playWalk();
+        this.startQuizQuestion(0);
       }
     } else if (this.battle.substate === 'MENU') {
       if (key === 'ArrowUp' || key === 'ArrowDown' || key === 'w' || key === 's') {
@@ -512,25 +731,43 @@ class CloudmonGame {
           this.state = 'OVERWORLD';
         }
       }
-    } else if (this.battle.substate === 'QUESTION') {
-      // 2x2 Grid selections for multiple choice (A, B, C, D)
-      // A=0 (top-left), B=1 (top-right), C=2 (bottom-left), D=3 (bottom-right)
-      if (key === 'ArrowLeft' || key === 'a') {
-        if (this.battle.selectedOptionIdx % 2 === 1) this.battle.selectedOptionIdx--;
-        soundSystem.playWalk();
-      } else if (key === 'ArrowRight' || key === 'd') {
-        if (this.battle.selectedOptionIdx % 2 === 0) this.battle.selectedOptionIdx++;
-        soundSystem.playWalk();
-      } else if (key === 'ArrowUp' || key === 'w') {
-        if (this.battle.selectedOptionIdx >= 2) this.battle.selectedOptionIdx -= 2;
+    } else if (this.battle.substate === 'CLI_MENU') {
+      if (key === 'ArrowUp' || key === 'w') {
+        this.battle.cliSelection = (this.battle.cliSelection - 1 + 4) % 4;
         soundSystem.playWalk();
       } else if (key === 'ArrowDown' || key === 's') {
-        if (this.battle.selectedOptionIdx < 2) this.battle.selectedOptionIdx += 2;
+        this.battle.cliSelection = (this.battle.cliSelection + 1) % 4;
+        soundSystem.playWalk();
+      } else if (key === 'Enter' || key === ' ') {
+        this.selectCliCommand();
+      } else if (key === 'Escape') {
+        soundSystem.playWalk();
+        this.closeCliMenu();
+      }
+    } else if (this.battle.substate === 'QUESTION') {
+      let newSel = this.battle.selectedOptionIdx;
+      if (key === 'ArrowLeft' || key === 'a') {
+        if (newSel % 2 === 1) newSel--;
+      } else if (key === 'ArrowRight' || key === 'd') {
+        if (newSel % 2 === 0) newSel++;
+      } else if (key === 'ArrowUp' || key === 'w') {
+        if (newSel >= 2) newSel -= 2;
+      } else if (key === 'ArrowDown' || key === 's') {
+        if (newSel < 2) newSel += 2;
+      }
+      
+      // If selection is valid and not eliminated, accept it
+      if (newSel !== this.battle.selectedOptionIdx && 
+          (!this.battle.eliminatedOptions || !this.battle.eliminatedOptions.includes(newSel))) {
+        this.battle.selectedOptionIdx = newSel;
         soundSystem.playWalk();
       }
       
       if (key === 'Enter' || key === ' ') {
         this.submitAnswer();
+      } else if (key === 'Escape') {
+        soundSystem.playWalk();
+        this.openCliMenu();
       }
     } else if (this.battle.substate === 'EXPLANATION') {
       if (key === 'Enter' || key === ' ') {
@@ -548,7 +785,7 @@ class CloudmonGame {
           }
         }
       }
-    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL') {
+    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL' || this.battle.substate === 'CON_RECOVERY') {
       if (key === 'Enter' || key === ' ') {
         soundSystem.playWalk();
         
@@ -591,10 +828,13 @@ class CloudmonGame {
     } else if (this.battle.substate === 'INTRO') {
       this.battle.substate = 'MENU';
       soundSystem.playWalk();
+    } else if (this.battle.substate === 'EVO_INTRO') {
+      soundSystem.playWalk();
+      this.startQuizQuestion(0);
     } else if (this.battle.substate === 'EXPLANATION') {
       // Progress explanation
       this.handleBattleInput('Enter');
-    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL') {
+    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL' || this.battle.substate === 'CON_RECOVERY') {
       this.handleBattleInput('Enter');
     }
   }
@@ -603,7 +843,12 @@ class CloudmonGame {
     this.battle.substate = 'QUESTION';
     this.battle.currentQuestionIdx = index;
     this.battle.selectedOptionIdx = 0;
-    this.battle.timer = 15;
+    
+    const enemyName = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[enemyName];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+    const maxTimer = enemyPillar === "Compute" ? 18 : 15;
+    this.battle.timer = maxTimer;
     
     // Reset timer interval
     if (this.battle.timerIntervalId) clearInterval(this.battle.timerIntervalId);
@@ -657,6 +902,17 @@ class CloudmonGame {
   }
 
   captureFailure() {
+    const name = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[name];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+
+    if (enemyPillar === "Storage & DB" && Math.random() < 0.33) {
+      this.battle.substate = 'CON_RECOVERY';
+      soundSystem.playCorrectChime();
+      this.addTextLog(`🔄 HA_CONSENSUS: Read/Write failure on ${name} recovered automatically via secondary replica consensus! Saved SLA quota.`);
+      return;
+    }
+
     this.battle.substate = 'CAP_FAIL';
     soundSystem.playEscapeCrash();
     
@@ -664,7 +920,6 @@ class CloudmonGame {
     this.player.quota--;
     this.updateUI();
     
-    const name = this.battle.cloudmon;
     this.addTextLog(`🛑 EXCEPTION: ${name} deployment crashed! Decreased Quota HP. Core HP: ${this.player.quota}/5`);
   }
 
@@ -700,36 +955,70 @@ class CloudmonGame {
         const isCaptured = this.cloudDex[name];
         
         const card = document.createElement('div');
-        card.className = `p-3 rounded-lg border-2 font-mono transition-all cursor-pointer select-none ${
-          isCaptured 
-            ? 'bg-green-50/80 border-green-600/30 hover:shadow-md hover:bg-green-100/90 dark:bg-green-950/20 dark:border-green-500/40 dark:hover:bg-green-950/40' 
-            : 'bg-gray-100/50 border-dashed border-gray-300 dark:bg-zinc-900/40 dark:border-zinc-800'
-        }`;
+        const pillar = item.pillar || "Compute";
+        
+        let cardBgClasses = 'bg-gray-100/50 border-dashed border-gray-300 dark:bg-zinc-900/40 dark:border-zinc-800';
+        let textNameClasses = 'text-gray-400 dark:text-zinc-600';
+        let badgeClasses = 'bg-gray-200 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500';
+        let italicTextClasses = 'text-gray-400 dark:text-zinc-600';
+
+        if (isCaptured) {
+          if (pillar === "Compute") {
+            cardBgClasses = 'bg-blue-50/80 border-blue-600/30 hover:shadow-md hover:bg-blue-100/90 dark:bg-blue-950/20 dark:border-blue-500/40 dark:hover:bg-blue-950/40';
+            textNameClasses = 'text-blue-800 dark:text-blue-400';
+            badgeClasses = 'bg-blue-200 text-blue-800 dark:bg-blue-950 dark:text-blue-300';
+            italicTextClasses = 'text-blue-700 dark:text-blue-400';
+          } else if (pillar === "Storage & DB") {
+            cardBgClasses = 'bg-emerald-50/80 border-emerald-600/30 hover:shadow-md hover:bg-emerald-100/90 dark:bg-emerald-950/20 dark:border-emerald-500/40 dark:hover:bg-emerald-950/40';
+            textNameClasses = 'text-emerald-800 dark:text-emerald-400';
+            badgeClasses = 'bg-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+            italicTextClasses = 'text-emerald-700 dark:text-emerald-400';
+          } else if (pillar === "AI & Analytics") {
+            cardBgClasses = 'bg-purple-50/80 border-purple-600/30 hover:shadow-md hover:bg-purple-100/90 dark:bg-purple-950/20 dark:border-purple-500/40 dark:hover:bg-purple-950/40';
+            textNameClasses = 'text-purple-800 dark:text-purple-400';
+            badgeClasses = 'bg-purple-200 text-purple-800 dark:bg-purple-950 dark:text-purple-300';
+            italicTextClasses = 'text-purple-700 dark:text-purple-400';
+          }
+        }
+
+        const nextEvolution = this.evolutionMap[name];
+        const canEvolve = isCaptured && nextEvolution && !this.cloudDex[nextEvolution];
+
+        card.className = `p-3 rounded-lg border-2 font-mono transition-all cursor-pointer select-none ${cardBgClasses}`;
         
         card.innerHTML = `
           <div class="flex items-center justify-between mb-1">
-            <span class="font-bold text-sm ${isCaptured ? 'text-green-800 dark:text-green-400' : 'text-gray-400 dark:text-zinc-600'}">
-              ${isCaptured ? '📂 ' + name : '❓ [ENCRYPTED]'}
+            <span class="font-bold text-sm ${textNameClasses}">
+              ${isCaptured ? '📂 ' + name + ' (' + pillar + ')' : '❓ [ENCRYPTED]'}
             </span>
-            <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${
-              isCaptured 
-                ? 'bg-green-200 text-green-800 dark:bg-green-950 dark:text-green-300' 
-                : 'bg-gray-200 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500'
-            }">
-              ${isCaptured ? 'Active' : 'Unstable'}
-            </span>
+            <div class="flex gap-2 items-center">
+              ${canEvolve ? `<button class="evolve-btn px-2 py-0.5 bg-yellow-500 text-slate-900 border border-yellow-600 rounded text-[9px] font-bold hover:bg-yellow-400 transition-all font-sans">MODERNIZE</button>` : ''}
+              <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${badgeClasses}">
+                ${isCaptured ? 'Active' : 'Unstable'}
+              </span>
+            </div>
           </div>
           <p class="text-[11px] leading-relaxed ${isCaptured ? 'text-gray-700 dark:text-zinc-300' : 'text-gray-400 dark:text-zinc-600'}">
             ${isCaptured ? item.desc : 'Walk through floppy disk grass in the overworld to detect this product and verify its capability parameters.'}
           </p>
-          ${isCaptured ? `<div class="text-[9px] text-green-700 dark:text-green-400 mt-2 italic">Standard sandbox launch: Gen90 (${item.launchYear})</div>` : ''}
+          ${isCaptured ? `<div class="text-[9px] ${italicTextClasses} mt-2 italic">Standard sandbox launch: Gen90 (${item.launchYear})</div>` : ''}
         `;
         
         // Add click listener to show captured details on main screen if they click
-        if (isCaptured) {
-          card.onclick = () => {
+        card.onclick = () => {
+          if (isCaptured) {
             this.addTextLog(`Examing database manifest: ${name}. Standard specifications active.`);
-          };
+          }
+        };
+
+        if (canEvolve) {
+          const btn = card.querySelector('.evolve-btn');
+          if (btn) {
+            btn.onclick = (e) => {
+              e.stopPropagation(); // prevent card click
+              this.startEvolutionBattle(name, nextEvolution);
+            };
+          }
         }
         
         listContainer.appendChild(card);
@@ -805,7 +1094,7 @@ class CloudmonGame {
     
     // Draw tiles
     for (let r = startRow; r <= endRow; r++) {
-      for (let c = startCol; c <= endCol; colIndex = c, c++) {
+      for (let c = startCol; c <= endCol; c++) {
         const tile = this.map[r][c];
         const screenX = c * this.tileSize + offsetX;
         const screenY = r * this.tileSize + offsetY;
@@ -847,16 +1136,22 @@ class CloudmonGame {
   }
 
   renderBattle() {
+    const enemyName = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[enemyName];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+    const theme = this.pillarThemes[enemyPillar] || this.pillarThemes["Compute"];
+
     const bg = this.isGameBoyMode ? "#9bbc0f" : "#1a1a24";
     const darkColor = this.isGameBoyMode ? "#0f380f" : "#ffffff";
-    const accentColor = this.isGameBoyMode ? "#306230" : "#4285f4";
+    const accentColor = this.isGameBoyMode ? "#306230" : theme.accentColor;
+    const platformColor = this.isGameBoyMode ? "rgba(48, 98, 48, 0.2)" : theme.platformBg;
     
     // 1. Draw solid background
     this.ctx.fillStyle = bg;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
     // 2. Draw Battle Platforms (light circles)
-    this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.2)" : "rgba(255, 255, 255, 0.05)";
+    this.ctx.fillStyle = platformColor;
     this.ctx.beginPath();
     this.ctx.ellipse(360, 130, 90, 30, 0, 0, 2 * Math.PI);
     this.ctx.fill();
@@ -871,7 +1166,6 @@ class CloudmonGame {
     drawPixelSprite(this.ctx, 'playerUp', 70, 160, pScale, this.isGameBoyMode);
     
     // 4. Draw Wild Cloudmon sprite (top-right)
-    const enemyName = this.battle.cloudmon;
     drawPixelSprite(this.ctx, enemyName, 310, 40, pScale, this.isGameBoyMode);
     
     // 5. Draw HUD - Enemy Status Box (Top-Left)
@@ -894,7 +1188,7 @@ class CloudmonGame {
       this.ctx.arc(125 + (i * 14), 48, 4, 0, 2 * Math.PI);
       if (i < this.battle.currentQuestionIdx) {
         // completed
-        this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#34a853";
+        this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : accentColor;
       } else {
         this.ctx.fillStyle = this.isGameBoyMode ? "#9bbc0f" : "#444444";
       }
@@ -927,9 +1221,14 @@ class CloudmonGame {
   }
 
   renderBattleDialogue() {
+    const enemyName = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[enemyName];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+    const theme = this.pillarThemes[enemyPillar] || this.pillarThemes["Compute"];
+
     const darkColor = this.isGameBoyMode ? "#0f380f" : "#ffffff";
     const lightBg = this.isGameBoyMode ? "#e0f8cf" : "#1a1a24";
-    const borderCol = this.isGameBoyMode ? "#0f380f" : "#4285f4";
+    const borderCol = this.isGameBoyMode ? "#0f380f" : theme.borderCol;
     
     // Outer Border
     this.ctx.fillStyle = this.isGameBoyMode ? "#8bac0f" : "#14141e";
@@ -966,6 +1265,47 @@ class CloudmonGame {
       this.ctx.font = '7px "Press Start 2P", monospace';
       this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#aaaaaa";
       this.ctx.fillText("Use Arrows/WASD, Enter to confirm", 40, 410);
+    } else if (this.battle.substate === 'CLI_MENU') {
+      this.ctx.font = '9px "Press Start 2P", monospace';
+      this.ctx.fillText("DEV CONSOLE COMMANDS:", 25, 290);
+      
+      const commands = [
+        `gcloud auth login   [${this.battle.cliCharges.gcloud ? "1" : "0"}]`,
+        `kubectl logs        [${this.battle.cliCharges.kubectl ? "1" : "0"}]`,
+        `terraform apply     [${this.battle.cliCharges.terraform ? "1" : "0"}]`,
+        "BACK TO QUIZ"
+      ];
+      
+      const descList = [
+        "Restores 1 Quota SLA HP point.",
+        "Reveals answer checkmark. (Timer -5s)",
+        "Orchestrates state: eliminates 2 wrong answers.",
+        "Resume and return to the question timer."
+      ];
+      
+      commands.forEach((cmd, index) => {
+        const y = 320 + (index * 22);
+        if (this.battle.cliSelection === index) {
+          this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.15)" : theme.platformBg;
+          this.ctx.fillRect(20, y - 9, 440, 16);
+          this.ctx.strokeStyle = darkColor;
+          this.ctx.lineWidth = 1;
+          this.ctx.strokeRect(20, y - 9, 440, 16);
+          
+          this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : theme.accentColor;
+          this.ctx.font = '8px "Press Start 2P", monospace';
+          this.ctx.fillText(`▶ ${cmd}`, 25, y);
+          
+          // Draw helper description at the very bottom
+          this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#aaaaaa";
+          this.ctx.font = '6px "Press Start 2P", monospace';
+          this.ctx.fillText(descList[index], 25, 410);
+        } else {
+          this.ctx.fillStyle = darkColor;
+          this.ctx.font = '8px "Press Start 2P", monospace';
+          this.ctx.fillText(`  ${cmd}`, 25, y);
+        }
+      });
     } else if (this.battle.substate === 'QUESTION') {
       const q = this.battle.questions[this.battle.currentQuestionIdx];
       
@@ -988,21 +1328,31 @@ class CloudmonGame {
         const x = 30 + (col * 220);
         const y = optYBase + (row * 35);
         
+        const isEliminated = this.battle.eliminatedOptions && this.battle.eliminatedOptions.includes(index);
+        const isCorrectChoice = index === q.correctAnswer;
+        
+        let label = opt;
+        if (this.battle.logsRevealed && isCorrectChoice) {
+          label = `✔️ ` + label;
+        }
+        
         // Highlights selection
-        if (this.battle.selectedOptionIdx === index) {
-          this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.15)" : "rgba(66, 133, 244, 0.15)";
+        if (this.battle.selectedOptionIdx === index && !isEliminated) {
+          this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.15)" : theme.platformBg;
           this.ctx.fillRect(x - 5, y - 10, 210, 24);
           this.ctx.strokeStyle = darkColor;
           this.ctx.lineWidth = 1;
           this.ctx.strokeRect(x - 5, y - 10, 210, 24);
           
-          this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#4285f4";
+          this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : theme.accentColor;
         } else {
-          this.ctx.fillStyle = darkColor;
+          this.ctx.fillStyle = isEliminated 
+            ? (this.isGameBoyMode ? "#306230" : "#555555") 
+            : darkColor;
         }
         
         // Wrap option text in case it's long
-        const optLines = this.wrapText(opt, 28);
+        const optLines = this.wrapText(isEliminated ? "---" : label, 28);
         optLines.forEach((oLine, oIdx) => {
           this.ctx.fillText(oLine, x, y + (oIdx * 10));
         });
@@ -1011,9 +1361,22 @@ class CloudmonGame {
       // Timer bar rendering
       this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#aaaaaa";
       this.ctx.fillRect(25, 315, 430, 4);
-      const timerPct = this.battle.timer / 15;
-      this.ctx.fillStyle = this.battle.timer <= 4 ? "#ea4335" : (this.isGameBoyMode ? "#306230" : "#4285f4");
+      const maxTimer = enemyPillar === "Compute" ? 18 : 15;
+      const timerPct = this.battle.timer / maxTimer;
+      this.ctx.fillStyle = this.battle.timer <= 4 ? "#ea4335" : (this.isGameBoyMode ? "#306230" : theme.accentColor);
       this.ctx.fillRect(25, 315, 430 * timerPct, 4);
+
+      // AI Specialty Hint Display
+      if (enemyPillar === "AI & Analytics" && q.hint) {
+        this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#a142f4";
+        this.ctx.font = '6px "Press Start 2P", monospace';
+        this.ctx.fillText(`💡 HINT: ${q.hint}`, 25, 328);
+      }
+
+      // CLI help footer tip
+      this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#888888";
+      this.ctx.font = '5px "Press Start 2P", monospace';
+      this.ctx.fillText("Press B (ESC) for CLI Console", 270, 328);
     } else if (this.battle.substate === 'EXPLANATION') {
       this.ctx.font = '8px "Press Start 2P", monospace';
       
@@ -1023,23 +1386,57 @@ class CloudmonGame {
       });
       
       this.renderBlinkingArrow(440, 400);
-    } else if (this.battle.substate === 'CAP_SUCCESS') {
+    } else if (this.battle.substate === 'CON_RECOVERY') {
       this.ctx.font = '10px "Press Start 2P", monospace';
-      this.ctx.fillText("SUCCESS! DEPLOYED!", 25, 295);
+      this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#34a853";
+      this.ctx.fillText("HA REPLICA CONSENSUS!", 25, 295);
+      
+      this.ctx.fillStyle = darkColor;
+      this.ctx.font = '8px "Press Start 2P", monospace';
+      const lines = this.wrapText(`A critical deployment write exception occurred. However, multi-zone replica consensus automatically recovered the state! Quota SLA saved.`, 50);
+      lines.forEach((line, index) => {
+        this.ctx.fillText(line, 25, 320 + (index * 13));
+      });
+      
+      this.renderBlinkingArrow(440, 400);
+    } else if (this.battle.substate === 'EVO_INTRO') {
+      this.ctx.font = '10px "Press Start 2P", monospace';
+      this.ctx.fillText("UPGRADE IN PROGRESS...", 25, 295);
       
       this.ctx.font = '8px "Press Start 2P", monospace';
-      const lines = this.wrapText(`${this.battle.cloudmon} has compiled successfully. Product capability standards stored in Cloud-Dex.`, 50);
+      const lines = this.wrapText(`Modernizing ${this.battle.baseCloudmon} to ${this.battle.evolvedCloudmon}. Ready to check architectural constraints update?`, 50);
+      lines.forEach((line, index) => {
+        this.ctx.fillText(line, 25, 320 + (index * 13));
+      });
+      
+      this.renderBlinkingArrow(440, 400);
+    } else if (this.battle.substate === 'CAP_SUCCESS') {
+      const isEvo = this.battle.baseCloudmon !== undefined;
+      this.ctx.font = '10px "Press Start 2P", monospace';
+      this.ctx.fillText(isEvo ? "MODERNIZE SUCCESS!" : "SUCCESS! DEPLOYED!", 25, 295);
+      
+      this.ctx.font = '8px "Press Start 2P", monospace';
+      const text = isEvo 
+        ? `${this.battle.baseCloudmon} evolved into ${this.battle.evolvedCloudmon}! Modernization updates successfully deployed to Cloud-Dex.`
+        : `${this.battle.cloudmon} has compiled successfully. Product capability standards stored in Cloud-Dex.`;
+      
+      const lines = this.wrapText(text, 50);
       lines.forEach((line, index) => {
         this.ctx.fillText(line, 25, 320 + (index * 13));
       });
       
       this.renderBlinkingArrow(440, 400);
     } else if (this.battle.substate === 'CAP_FAIL') {
+      const isEvo = this.battle.baseCloudmon !== undefined;
       this.ctx.font = '10px "Press Start 2P", monospace';
-      this.ctx.fillText("SANDBOX CRASHED!", 25, 295);
+      this.ctx.fillText(isEvo ? "MODERNIZE FAILED!" : "SANDBOX CRASHED!", 25, 295);
       
       this.ctx.font = '8px "Press Start 2P", monospace';
-      const lines = this.wrapText(`Deployment compilation failed. Connection lost on terminal port. Quota HP reduced by 1. System reboot requested.`, 50);
+      const text = isEvo 
+        ? `Architecture upgrade to ${this.battle.evolvedCloudmon} failed. Upgrade scripts rolled back. Quota HP reduced by 1.`
+        : `Deployment compilation failed. Connection lost on terminal port. Quota HP reduced by 1. System reboot requested.`;
+      
+      const lines = this.wrapText(text, 50);
       lines.forEach((line, index) => {
         this.ctx.fillText(line, 25, 320 + (index * 13));
       });
@@ -1127,8 +1524,8 @@ class CloudmonGame {
     this.ctx.fillStyle = light;
     this.ctx.font = '8px "Press Start 2P", monospace';
     const lines = [
-      "Successfully deployed all 5 Cloudmon engines:",
-      "- BigQuery, Spanner, GKE, Cloud Run, and Vertex AI.",
+      "Successfully deployed all 9 Cloudmon architecture services:",
+      "- VMs, Databases, GKE, Serverless, and AI engines.",
       "",
       "You have demonstrated elite product capability parameters,",
       "resolving transactional consensus, scaling, and database",

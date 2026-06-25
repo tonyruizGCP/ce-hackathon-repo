@@ -193,7 +193,82 @@ const sprites = {
 
   // --- CLOUDMON SPRITES (Facing forward for battle/encyclopedia) ---
 
-  // BigQuery (Magnifying glass examining stacked databases/cylinders)
+  "Compute Engine": [
+    "....k..k..k.....",
+    "..kkkkkkkkkkkk..",
+    ".kbbbbbbbbbbbbk.",
+    "kbbkkkkkkkkkkbbk",
+    ".kbkllllllllkbk.",
+    "kblkkkkkkkkkklbk",
+    ".kbkllllllllkbk.",
+    "kblkkkkkkkkkklbk",
+    ".kbkllllllllkbk.",
+    "kblkkkkkkkkkklbk",
+    ".kbkllllllllkbk.",
+    "kbbkkkkkkkkkkbbk",
+    ".kbbbbbbbbbbbbk.",
+    "..kkkkkkkkkkkk..",
+    "....k..k..k.....",
+    "................"
+  ],
+
+  "GKE Autopilot": [
+    "kkkkkkkkkkkkkkkk",
+    "kbbbbbbbbbbbbbbk",
+    "kbkkkkkkkkkkkkbk",
+    "kbklkwwkkwwklkbk",
+    "kbkkkwwkkwwkkkbk",
+    "kbkwwwwkwwwwkbk",
+    "kbkkyykkkyykkkbk",
+    "kbkyyyykyyyykbk",
+    "kbkyykkkkkkyykbk",
+    "kbkyykkkkkkyykbk",
+    "kbkkyyyykyyyykbk",
+    "kbkkkkkkkkkkkkbk",
+    "kbbbbbbbbbbbbbbk",
+    "kkkkkkkkkkkkkkkk",
+    "................",
+    "................"
+  ],
+
+  "Cloud SQL": [
+    "......kkkk......",
+    "....kkvvvvkk....",
+    "...kvvwwwwvvk...",
+    "..kvvvvvwwvvvvk..",
+    "..kkkkkkkkkkkk..",
+    "..kvvvvvvvvvvk..",
+    "..kvvwwwwvvkkl..",
+    "..kvvvvvvvvvvk..",
+    "..kkkkkkkkkkkk..",
+    "..kvvvvvvvvvvk..",
+    "..kvvwwwwvvvvk..",
+    "..kvvvvvvvvvvk..",
+    "..kkkkkkkkkkkk..",
+    "................",
+    "................",
+    "................"
+  ],
+
+  "Cloud Functions": [
+    "......kkkk......",
+    ".....kppyyk.....",
+    "....kppyyk......",
+    "...kppyyk.......",
+    "..kppyyyykkkk...",
+    "..kkkkyyyyyppk..",
+    ".....kyyyyppk...",
+    "....kyyyyppk....",
+    "...kyyyyppk.....",
+    "..kyyyykkk......",
+    "..kyykk.........",
+    "..kk............",
+    "................",
+    "................",
+    "................",
+    "................"
+  ],
+
   BigQuery: [
     "......kkkk......",
     "....kkbbbbkk....",
@@ -307,7 +382,7 @@ function drawPixelSprite(ctx, spriteId, targetX, targetY, pixelSize = 2, isGameB
   // Disable image smoothing for nice crisp retro pixels
   ctx.imageSmoothingEnabled = false;
 
-  for (let row = 0; index = row, row < 16; row++) {
+  for (let row = 0; row < 16; row++) {
     const line = sprite[row];
     for (let col = 0; col < 16; col++) {
       const char = line[col];

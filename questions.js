@@ -14,7 +14,8 @@ const questionBank = {
         "D) ORC"
       ],
       correctAnswer: 0, // Capacitor
-      explanation: "Capacitor is BigQuery's proprietary columnar storage format, optimized for analytical queries over massive datasets."
+      explanation: "Capacitor is BigQuery's proprietary columnar storage format, optimized for analytical queries over massive datasets.",
+      hint: "Starts with Cap-, like a component storing charge."
     },
     {
       id: "bq_q2",
@@ -26,7 +27,8 @@ const questionBank = {
         "D) Streaming Buffer"
       ],
       correctAnswer: 0, // Federated Queries / External Tables
-      explanation: "External tables and Federated Queries allow BigQuery to query data directly from external sources without ingestion."
+      explanation: "External tables and Federated Queries allow BigQuery to query data directly from external sources without ingestion.",
+      hint: "Look for external or federated sources."
     },
     {
       id: "bq_q3",
@@ -38,7 +40,8 @@ const questionBank = {
         "D) Size of the source dataset on disk"
       ],
       correctAnswer: 1, // Quantity of data (bytes) processed
-      explanation: "On-demand pricing charges you strictly based on the number of bytes read/scanned by your SQL query."
+      explanation: "On-demand pricing charges you strictly based on the number of bytes read/scanned by your SQL query.",
+      hint: "You pay for the total bytes scanned by your query."
     },
     {
       id: "bq_q4",
@@ -50,7 +53,8 @@ const questionBank = {
         "D) BigQuery Dataframes"
       ],
       correctAnswer: 1, // BigQuery ML (BQML)
-      explanation: "BigQuery ML (BQML) lets you train and run predictive models directly inside BigQuery using standard SQL queries."
+      explanation: "BigQuery ML (BQML) lets you train and run predictive models directly inside BigQuery using standard SQL queries.",
+      hint: "Abbreviated BQML."
     },
     {
       id: "bq_q5",
@@ -62,7 +66,8 @@ const questionBank = {
         "D) By alphabetical order of string columns"
       ],
       correctAnswer: 1, // By ingestion time, date, or integer range columns
-      explanation: "Partitioning tables by date, ingestion time, or integer range reduces the amount of scanned data and query costs."
+      explanation: "Partitioning tables by date, ingestion time, or integer range reduces the amount of scanned data and query costs.",
+      hint: "Partitioning by date, time, or range."
     }
   ],
   "Cloud Spanner": [
@@ -262,7 +267,8 @@ const questionBank = {
         "D) Vertex AI Workbench"
       ],
       correctAnswer: 0, // Vertex AI Studio
-      explanation: "Vertex AI Studio (formerly Generative AI Studio) provides a graphical workspace to test prompts, parameters, and models."
+      explanation: "Vertex AI Studio (formerly Generative AI Studio) provides a graphical workspace to test prompts, parameters, and models.",
+      hint: "A studio workspace for generative models."
     },
     {
       id: "vai_q2",
@@ -274,7 +280,8 @@ const questionBank = {
         "D) Chirp"
       ],
       correctAnswer: 2, // Gemini
-      explanation: "Gemini is Google's state-of-the-art multimodal model family, supporting text, code, images, audio, and video inputs natively."
+      explanation: "Gemini is Google's state-of-the-art multimodal model family, supporting text, code, images, audio, and video inputs natively.",
+      hint: "Starts with G, the exact model you are speaking to right now!"
     },
     {
       id: "vai_q3",
@@ -286,7 +293,8 @@ const questionBank = {
         "D) Reinforcement Learning from Human Feedback (RLHF)"
       ],
       correctAnswer: 0, // RAG
-      explanation: "RAG retrieves relevant passages from secure enterprise document repositories and appends them to prompt contexts for factual grounding."
+      explanation: "RAG retrieves relevant passages from secure enterprise document repositories and appends them to prompt contexts for factual grounding.",
+      hint: "Acronym is RAG (Retrieval-Augmented...)."
     },
     {
       id: "vai_q4",
@@ -298,7 +306,8 @@ const questionBank = {
         "D) Vertex AI Pipelines"
       ],
       correctAnswer: 0, // Feature Store
-      explanation: "Vertex AI Feature Store provides a centralized repository with low-latency serving for ML features across multiple models."
+      explanation: "Vertex AI Feature Store provides a centralized repository with low-latency serving for ML features across multiple models.",
+      hint: "A store dedicated to ML features."
     },
     {
       id: "vai_q5",
@@ -310,9 +319,184 @@ const questionBank = {
         "D) Cloud Pub/Sub Topics"
       ],
       correctAnswer: 0, // Pipelines
-      explanation: "Vertex AI Pipelines helps you orchestrate your ML workflows as a directed acyclic graph (DAG) using Kubeflow or TFX pipelines."
+      explanation: "Vertex AI Pipelines helps you orchestrate your ML workflows as a directed acyclic graph (DAG) using Kubeflow or TFX pipelines.",
+      hint: "ML workflows as directed pipelines."
+    }
+  ],
+  "Compute Engine": [
+    {
+      id: "ce_q1",
+      question: "Which GCP service provides secure, customizable virtual machine instances in Google’s data centers?",
+      options: [
+        "A) App Engine",
+        "B) Compute Engine",
+        "C) Cloud Run",
+        "D) Google Kubernetes Engine"
+      ],
+      correctAnswer: 1, // Compute Engine
+      explanation: "Compute Engine is Google Cloud's Infrastructure-as-a-Service (IaaS) offering, delivering virtual machines at scale.",
+      hint: "Often referred to as GCE VM."
+    },
+    {
+      id: "ce_q2",
+      question: "What VM pricing structure provides deep discounts of up to 60-91% for workloads that can tolerate interruptions?",
+      options: [
+        "A) On-demand pricing",
+        "B) Spot/Preemptible VMs",
+        "C) Sole-tenant nodes",
+        "D) Committed Use Discounts"
+      ],
+      correctAnswer: 1, // Spot/Preemptible VMs
+      explanation: "Spot and Preemptible VMs are excess compute capacity sold at steep discounts, which Google can reclaim with 30-second warnings.",
+      hint: "Workloads must be fault-tolerant because they can shut down."
+    },
+    {
+      id: "ce_q3",
+      question: "Which feature allows group VM instances to scale up or down automatically based on CPU load?",
+      options: [
+        "A) Sole-tenant nodes",
+        "B) Managed Instance Groups (MIGs)",
+        "C) Cloud Load Balancing",
+        "D) Metadata Server"
+      ],
+      correctAnswer: 1, // Managed Instance Groups (MIGs)
+      explanation: "Managed Instance Groups (MIGs) allow auto-scaling, load balancing, and self-healing across identical virtual machine instances.",
+      hint: "MIGs automate auto-scaling."
+    }
+  ],
+  "Cloud SQL": [
+    {
+      id: "csql_q1",
+      question: "Which fully managed database service supports MySQL, PostgreSQL, and SQL Server databases?",
+      options: [
+        "A) Cloud Spanner",
+        "B) Cloud SQL",
+        "C) AlloyDB",
+        "D) Firestore"
+      ],
+      correctAnswer: 1, // Cloud SQL
+      explanation: "Cloud SQL is a fully managed service that takes care of backups, replication, patches, and updates for MySQL, Postgres, and SQL Server.",
+      hint: "Managed relational database engine."
+    },
+    {
+      id: "csql_q2",
+      question: "Which feature ensures high availability in Cloud SQL by replicating data to a standby instance in another zone?",
+      options: [
+        "A) Read Replicas",
+        "B) Automated Backups",
+        "C) Regional HA deployment",
+        "D) Database migration service"
+      ],
+      correctAnswer: 2, // Regional HA deployment
+      explanation: "A high availability configuration provisions a primary and standby instance in separate zones within the same region.",
+      hint: "Dual-zone high availability configuration."
+    },
+    {
+      id: "csql_q3",
+      question: "What tool allows connecting securely to a Cloud SQL instance from a local machine without opening public ports?",
+      options: [
+        "A) VPC Peering",
+        "B) Cloud SQL Auth Proxy",
+        "C) VPC Service Controls",
+        "D) Cloud VPN"
+      ],
+      correctAnswer: 1, // Cloud SQL Auth Proxy
+      explanation: "The Cloud SQL Auth Proxy evaluates IAM permissions and creates an encrypted tunnel to the instance without firewall rules.",
+      hint: "A secure helper agent proxy."
+    }
+  ],
+  "Cloud Functions": [
+    {
+      id: "cf_q1",
+      question: "Which lightweight serverless execution environment runs short code snippets in response to HTTP or Eventarc events?",
+      options: [
+        "A) Compute Engine",
+        "B) Cloud Run",
+        "C) Cloud Functions",
+        "D) App Engine"
+      ],
+      correctAnswer: 2, // Cloud Functions
+      explanation: "Cloud Functions is Google's Function-as-a-Service (FaaS) environment to execute modular, event-driven functions.",
+      hint: "Function-as-a-Service (FaaS)."
+    },
+    {
+      id: "cf_q2",
+      question: "What is the maximum execution time limit (timeout) for a HTTP-triggered Google Cloud Function (2nd Gen)?",
+      options: [
+        "A) 15 minutes",
+        "B) 60 minutes",
+        "C) 10 minutes",
+        "D) 24 hours"
+      ],
+      correctAnswer: 1, // 60 minutes
+      explanation: "GCP 2nd Gen Cloud Functions support running HTTP requests for up to 60 minutes, which is a massive upgrade from 1st Gen's 9-minute limit.",
+      hint: "2nd Gen functions support up to 60 minutes, matching Cloud Run."
+    },
+    {
+      id: "cf_q3",
+      question: "Which service is the standard event routing mesh that triggers Cloud Functions from cloud event streams?",
+      options: [
+        "A) Pub/Sub",
+        "B) Eventarc",
+        "C) Cloud Tasks",
+        "D) Cloud Scheduler"
+      ],
+      correctAnswer: 1, // Eventarc
+      explanation: "Eventarc routes events from Google Cloud sources, custom logs, and external SaaS apps directly into Cloud Functions or Cloud Run.",
+      hint: "Routes events from 130+ sources."
     }
   ]
+};
+
+const evolutionQuestions = {
+  "Compute Engine": {
+    question: "Which container orchestration platform is built on Google's infrastructure to run Kubernetes clusters without manually managing master nodes?",
+    options: [
+      "A) Docker Swarm",
+      "B) Cloud Run",
+      "C) Google Kubernetes Engine (GKE)",
+      "D) Compute Engine"
+    ],
+    correctAnswer: 2, // GKE
+    explanation: "Google Kubernetes Engine (GKE) is Google's managed Kubernetes service, which eliminates the need to run and configure master nodes.",
+    hint: "Standard managed Kubernetes."
+  },
+  "GKE": {
+    question: "Which GKE mode manages node provisioning, configuration, autoscaling, and security updates automatically?",
+    options: [
+      "A) GKE Standard",
+      "B) GKE Autopilot",
+      "C) GKE Bare Metal",
+      "D) GKE Multi-Cloud"
+    ],
+    correctAnswer: 1, // GKE Autopilot
+    explanation: "GKE Autopilot is a hands-off operation mode where Google manages the cluster's nodes, scaling, and security automatically.",
+    hint: "Hands-off node management."
+  },
+  "Cloud SQL": {
+    question: "Which globally distributed, enterprise relational database offers unlimited horizontal scale and 99.999% availability?",
+    options: [
+      "A) Cloud SQL",
+      "B) AlloyDB",
+      "C) Cloud Spanner",
+      "D) Bigtable"
+    ],
+    correctAnswer: 2, // Cloud Spanner
+    explanation: "Cloud Spanner uses synchronized atomic clocks and Paxos consensus to offer global database horizontal scale-out with ACID compliance.",
+    hint: "Uses atomic clocks for transactions."
+  },
+  "Cloud Functions": {
+    question: "Which serverless platform runs stateless container workloads via Knative and scales to zero?",
+    options: [
+      "A) App Engine",
+      "B) Google Kubernetes Engine",
+      "C) Cloud Run",
+      "D) Cloud Functions"
+    ],
+    correctAnswer: 2, // Cloud Run
+    explanation: "Cloud Run runs your containerized code on a serverless infrastructure, dynamically scaling it up or down to zero automatically.",
+    hint: "Stateless container-as-a-service."
+  }
 };
 
 // Helper to select 3 random questions for a specific service
@@ -327,5 +511,5 @@ function getQuizForService(serviceName) {
 
 // Export for usage
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { questionBank, getQuizForService };
+  module.exports = { questionBank, getQuizForService, evolutionQuestions };
 }
