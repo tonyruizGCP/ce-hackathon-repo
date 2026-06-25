@@ -307,7 +307,7 @@ function drawPixelSprite(ctx, spriteId, targetX, targetY, pixelSize = 2, isGameB
   // Disable image smoothing for nice crisp retro pixels
   ctx.imageSmoothingEnabled = false;
 
-  for (let row = 0; index = row, row < 16; row++) {
+  for (let row = 0; row < 16; row++) {
     const line = sprite[row];
     for (let col = 0; col < 16; col++) {
       const char = line[col];

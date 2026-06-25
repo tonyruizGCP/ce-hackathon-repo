@@ -805,7 +805,7 @@ class CloudmonGame {
     
     // Draw tiles
     for (let r = startRow; r <= endRow; r++) {
-      for (let c = startCol; c <= endCol; colIndex = c, c++) {
+      for (let c = startCol; c <= endCol; c++) {
         const tile = this.map[r][c];
         const screenX = c * this.tileSize + offsetX;
         const screenY = r * this.tileSize + offsetY;
