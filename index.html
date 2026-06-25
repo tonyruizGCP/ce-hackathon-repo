@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudmon: Retrofit the 90s | Google Cloud 8-Bit RPG</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            retro: ['"Press Start 2P"', 'monospace'],
+            sans: ['"Outfit"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Outfit & Press Start 2P -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+  <style>
+    /* Premium Glassmorphic / Retro Styling Utilities */
+    body {
+      background-color: #0b0f19;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(13, 71, 161, 0.15) 0, transparent 50%), 
+        radial-gradient(at 100% 100%, rgba(161, 66, 244, 0.15) 0, transparent 50%);
+    }
+
+    /* Game Boy Console Shell Gradients & Shadows */
+    .gb-console {
+      background: linear-gradient(145deg, #cbd5e1 0%, #94a3b8 100%);
+      box-shadow: 
+        inset 3px 3px 0px rgba(255,255,255,0.4),
+        inset -3px -3px 0px rgba(0,0,0,0.3),
+        0px 20px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .gb-screen-bezel {
+      background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
+      box-shadow: 
+        inset 2px 2px 0px rgba(0,0,0,0.4),
+        inset -2px -2px 0px rgba(255,255,255,0.1);
+    }
+
+    /* Screen Glass Reflection Overlay */
+    .gb-screen-glare {
+      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.01) 50%, rgba(255,255,255,0) 50%);
+      pointer-events: none;
+    }
+
+    /* D-pad 3D contours */
+    .dpad-btn {
+      box-shadow: 
+        inset 1px 1px 0px rgba(255,255,255,0.2),
+        inset -1px -1px 0px rgba(0,0,0,0.4);
+    }
+
+    .dpad-center {
+      background: #1e293b;
+      box-shadow: inset 0px 0px 2px rgba(0,0,0,0.8);
+    }
+
+    /* Action Buttons (A & B) */
+    .action-btn-red {
+      background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+      box-shadow: 
+        inset 2px 2px 0px rgba(255,255,255,0.25),
+        2px 4px 6px rgba(0,0,0,0.4),
+        inset -2px -2px 0px rgba(0,0,0,0.4);
+    }
+    .action-btn-red:active {
+      transform: scale(0.92);
+      box-shadow: 
+        inset 1px 1px 0px rgba(0,0,0,0.6),
+        1px 1px 2px rgba(0,0,0,0.2);
+    }
+
+    /* SELECT & START buttons */
+    .pill-btn {
+      background: linear-gradient(180deg, #64748b 0%, #475569 100%);
+      box-shadow: 
+        inset 1px 1px 0px rgba(255,255,255,0.2),
+        inset -1px -1px 0px rgba(0,0,0,0.5),
+        1px 2px 4px rgba(0,0,0,0.3);
+      transform: rotate(-28deg);
+    }
+    .pill-btn:active {
+      background: #334155;
+      box-shadow: inset 1px 1px 0px rgba(0,0,0,0.5);
+    }
+
+    /* LED Glow Micro-animation */
+    @keyframes ledPulse {
+      0%, 100% { opacity: 0.8; box-shadow: 0 0 4px #ef4444; }
+      50% { opacity: 1; box-shadow: 0 0 12px #f87171, 0 0 20px #ef4444; }
+    }
+    .power-led-on {
+      animation: ledPulse 2s infinite;
+    }
+
+    /* Pixel Art Borders */
+    .pixel-border {
+      border-style: solid;
+      border-width: 4px;
+      border-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3e%3cpath d='M0 0h4v4H0zm4 4h4v4H4zm4 4h4v4H8z' fill='%231e293b'/%3e%3c/svg%3e") 4 repeat;
+    }
+
+    /* Scrollbar Style for retro console */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.6);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col items-center justify-between py-6 px-4">
+
+  <!-- Header Section -->
+  <header class="w-full max-w-6xl flex flex-col md:flex-row items-center justify-between border-b border-slate-800 pb-4 mb-6">
+    <div class="text-center md:text-left mb-4 md:mb-0">
+      <div class="flex items-center justify-center md:justify-start gap-3">
+        <span class="text-3xl">🎮</span>
+        <h1 class="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-yellow-400 via-red-400 to-green-400 bg-clip-text text-transparent uppercase font-retro text-xs sm:text-lg">
+          Cloudmon: Retrofit the 90s
+        </h1>
+      </div>
+      <p class="text-slate-400 text-xs sm:text-sm font-medium font-sans mt-1">
+        Google Cloud Service Sandbox — Retro 1990s Game Boy Simulator
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Theme and sound controllers -->
+      <button id="theme-toggle" class="px-3 py-1.5 bg-slate-800/80 border border-slate-700 text-slate-200 rounded font-mono text-xs hover:bg-slate-700 hover:text-white transition-all">
+        🖥️ Screen: <span id="theme-toggle-status" class="font-bold text-yellow-400">Game Boy Classic</span>
+      </button>
+      <button id="bgm-toggle" class="px-3 py-1.5 bg-zinc-800/80 border-2 border-zinc-700 text-zinc-400 rounded font-mono text-xs hover:bg-zinc-700 transition-all">
+        🎵 BGM: OFF
+      </button>
+      <button id="sfx-toggle" class="px-3 py-1.5 bg-emerald-700/80 border-2 border-emerald-500 text-white rounded font-mono text-xs hover:bg-emerald-600 transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+        🔊 SFX: ON
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Layout -->
+  <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-8">
+    
+    <!-- LEFT: The Game Boy Hardware Console (Lg: 5/12 cols) -->
+    <div class="col-span-1 lg:col-span-5 flex flex-col items-center justify-center">
+      
+      <!-- Handheld Console Case -->
+      <div class="gb-console w-[350px] sm:w-[380px] h-[640px] sm:h-[680px] rounded-3xl p-6 flex flex-col justify-between select-none">
+        
+        <!-- Screen Section Bezel -->
+        <div class="gb-screen-bezel w-full rounded-2xl p-4 pb-3 flex flex-col">
+          
+          <!-- Bezel Header -->
+          <div class="flex items-center justify-between px-2 mb-2">
+            <!-- Retro Screen Line Decoration -->
+            <div class="h-0.5 w-1/4 bg-red-600"></div>
+            <span class="text-[9px] sm:text-[10px] font-retro text-slate-300 tracking-wider uppercase">CLOUDMON COLOR</span>
+            <div class="h-0.5 w-1/4 bg-blue-500"></div>
+          </div>
+          
+          <!-- Main Screen / Canvas Frame -->
+          <div class="relative w-full aspect-[10/9] border-4 border-slate-900 rounded bg-[#9bbc0f] overflow-hidden shadow-[inset_0_4px_8px_rgba(0,0,0,0.5)]">
+            <canvas id="game-canvas" class="w-full h-full block"></canvas>
+            
+            <!-- Glass glare overlay -->
+            <div class="gb-screen-glare absolute inset-0"></div>
+          </div>
+          
+          <!-- Power LED Indicator & Battery details -->
+          <div class="flex items-center gap-2 mt-2 px-1">
+            <div class="flex items-center gap-1.5">
+              <!-- Lit Red Pulsing LED -->
+              <div class="w-2.5 h-2.5 rounded-full bg-red-600 power-led-on border border-red-950"></div>
+              <span class="text-[8px] font-mono text-slate-400 uppercase tracking-widest font-semibold">Power</span>
+            </div>
+            <!-- Dynamic Battery Charge Indicator -->
+            <div class="flex-grow flex justify-end">
+              <span class="text-[8px] font-retro text-slate-400">SLA: <span id="ui-quota-hp" class="text-green-400 font-bold">5/5</span></span>
+            </div>
+          </div>
+
+        </div> <!-- Bezel End -->
+
+        <!-- Mid Console Details -->
+        <div class="w-full flex justify-between items-center px-4 my-2">
+          <!-- Logo text -->
+          <h2 class="text-slate-800 text-sm italic font-black font-sans uppercase tracking-widest select-none">
+            Google Cloud
+          </h2>
+          <!-- Speaker diagonal slats decoration -->
+          <div class="flex gap-1">
+            <div class="h-1.5 w-12 rounded bg-slate-700/20 transform rotate-[-25deg]"></div>
+          </div>
+        </div>
+
+        <!-- CONTROLS SECTION (D-Pad & A/B Buttons) -->
+        <div class="w-full flex justify-between items-start px-2 mt-1 mb-3">
+          
+          <!-- D-PAD (Classic Cross) -->
+          <div class="relative w-28 h-28 flex items-center justify-center">
+            <!-- Horizontal block -->
+            <div class="absolute w-24 h-8 bg-[#1e293b] rounded-md shadow-lg flex justify-between items-center px-1">
+              <!-- Left Arrow Button -->
+              <button id="gb-left" class="dpad-btn w-7 h-full bg-[#1e293b] active:bg-[#0f172a] rounded-l flex items-center justify-start pl-1 text-slate-500 hover:text-slate-300">
+                ◀
+              </button>
+              <!-- Right Arrow Button -->
+              <button id="gb-right" class="dpad-btn w-7 h-full bg-[#1e293b] active:bg-[#0f172a] rounded-r flex items-center justify-end pr-1 text-slate-500 hover:text-slate-300">
+                ▶
+              </button>
+            </div>
+            <!-- Vertical block -->
+            <div class="absolute w-8 h-24 bg-[#1e293b] rounded-md shadow-lg flex flex-col justify-between items-center py-1">
+              <!-- Up Arrow Button -->
+              <button id="gb-up" class="dpad-btn w-full h-7 bg-[#1e293b] active:bg-[#0f172a] rounded-t flex items-center justify-center text-slate-500 hover:text-slate-300">
+                ▲
+              </button>
+              <!-- Down Arrow Button -->
+              <button id="gb-down" class="dpad-btn w-full h-7 bg-[#1e293b] active:bg-[#0f172a] rounded-b flex items-center justify-center text-slate-500 hover:text-slate-300">
+                ▼
+              </button>
+            </div>
+            <!-- Inner Center Cap -->
+            <div class="dpad-center absolute w-8 h-8 rounded-full z-10"></div>
+          </div>
+          
+          <!-- ACTION BUTTONS (A & B) -->
+          <div class="flex gap-4 mt-4">
+            <!-- Button B (Red Left) -->
+            <div class="flex flex-col items-center gap-1.5">
+              <button id="gb-btn-b" class="action-btn-red w-11 h-11 rounded-full flex items-center justify-center text-slate-100 font-bold text-sm shadow-md">
+                B
+              </button>
+              <span class="text-[10px] font-retro font-bold text-slate-700 tracking-wider">RUN</span>
+            </div>
+            <!-- Button A (Red Right) -->
+            <div class="flex flex-col items-center gap-1.5">
+              <button id="gb-btn-a" class="action-btn-red w-11 h-11 rounded-full flex items-center justify-center text-slate-100 font-bold text-sm shadow-md">
+                A
+              </button>
+              <span class="text-[10px] font-retro font-bold text-slate-700 tracking-wider">OK</span>
+            </div>
+          </div>
+
+        </div> <!-- Control Section End -->
+
+        <!-- START & SELECT BUTTONS -->
+        <div class="w-full flex justify-center gap-8 px-6 mb-1">
+          <!-- SELECT Pill -->
+          <div class="flex flex-col items-center gap-1">
+            <button id="gb-btn-select" class="pill-btn w-12 h-3 rounded-full"></button>
+            <span class="text-[8px] font-retro font-bold text-slate-700 uppercase tracking-widest">HANDSHAKE</span>
+          </div>
+          <!-- START Pill -->
+          <div class="flex flex-col items-center gap-1">
+            <button id="gb-btn-start" class="pill-btn w-12 h-3 rounded-full"></button>
+            <span class="text-[8px] font-retro font-bold text-slate-700 uppercase tracking-widest">INTERACT</span>
+          </div>
+        </div>
+
+        <!-- Speaker Grille details -->
+        <div class="w-full flex justify-end pr-4">
+          <div class="flex gap-1.5 transform rotate-[-28deg]">
+            <div class="w-1.5 h-7 rounded bg-slate-700/20 shadow-[inset_1px_1px_rgba(0,0,0,0.1)]"></div>
+            <div class="w-1.5 h-7 rounded bg-slate-700/20 shadow-[inset_1px_1px_rgba(0,0,0,0.1)]"></div>
+            <div class="w-1.5 h-7 rounded bg-slate-700/20 shadow-[inset_1px_1px_rgba(0,0,0,0.1)]"></div>
+            <div class="w-1.5 h-7 rounded bg-slate-700/20 shadow-[inset_1px_1px_rgba(0,0,0,0.1)]"></div>
+          </div>
+        </div>
+
+      </div> <!-- Handheld End -->
+    </div> <!-- Left Layout End -->
+
+    <!-- RIGHT: Modern Sandbox Control Console Dashboard (Lg: 7/12 cols) -->
+    <div class="col-span-1 lg:col-span-7 flex flex-col gap-6">
+      
+      <!-- Panel 1: Player SLA HP Health Dashboard Card -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-5 backdrop-blur-md">
+        <h3 class="text-sm font-retro uppercase text-slate-300 mb-3 flex items-center justify-between">
+          <span>⚡ Live SLA Quota Uptime</span>
+          <span class="text-xs font-mono lowercase tracking-normal text-slate-400">HP (Quota points)</span>
+        </h3>
+        <div class="flex items-center gap-4">
+          <div class="text-4xl">🔌</div>
+          <div class="flex-grow">
+            <div class="flex justify-between text-xs font-mono text-slate-400 mb-1">
+              <span>SANDBOX CREDITS</span>
+              <span class="font-bold text-slate-200" id="quota-hp-pct">99.9% Reliable</span>
+            </div>
+            <!-- Battery health progress bar -->
+            <div class="w-full h-4 bg-slate-950 border border-slate-800 rounded-full overflow-hidden p-0.5">
+              <div id="ui-quota-bar" class="h-full bg-green-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: The Retro Cloud-Dex (Google Cloud Product Registry) -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-5 backdrop-blur-md flex flex-col h-[400px]">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+          <h3 class="text-sm font-retro uppercase text-slate-300 flex items-center gap-2">
+            <span>📚</span> Cloud-Dex Encyclopedia
+          </h3>
+          <span class="text-[10px] bg-indigo-950 text-indigo-400 border border-indigo-900 px-2 py-0.5 rounded font-mono uppercase">
+            5 Registered Modules
+          </span>
+        </div>
+        
+        <!-- Scrolling list of Google Cloud Products -->
+        <div id="dex-list" class="flex-grow overflow-y-auto space-y-3 pr-1">
+          <!-- Dynamic card entries injected here -->
+          <p class="text-xs font-mono text-slate-500 italic p-4 text-center">Initializing sandbox registry...</p>
+        </div>
+      </div>
+
+      <!-- Panel 3: Retro Developer Terminal Logs -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col h-[180px]">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+          <span class="text-xs font-mono text-green-400 font-bold">💻 DEV_CONSOLE@SANDBOX:~</span>
+          <span class="text-[10px] text-slate-500 font-mono">Port 8080 Active</span>
+        </div>
+        <!-- Live scrolling logs -->
+        <div id="console-logs" class="flex-grow overflow-y-auto font-mono text-xs text-green-500 space-y-1.5 leading-relaxed pr-1 select-all">
+          <p class="text-slate-500 italic">[System] Sandbox launched. Stand by for packet inspection.</p>
+        </div>
+      </div>
+
+    </div> <!-- Right Layout End -->
+
+  </main>
+
+  <!-- Controls Guidance Help Footer -->
+  <footer class="w-full max-w-6xl bg-slate-900/20 border border-slate-800/50 rounded-xl p-4 mb-2">
+    <h4 class="text-xs font-retro uppercase text-slate-400 mb-2">⌨️ Hardware & Keyboard Keybinds</h4>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono text-slate-300">
+      <div class="flex items-center gap-2">
+        <kbd class="px-2 py-1 bg-slate-800 rounded border border-slate-700 text-slate-200">W A S D</kbd>
+        <span class="text-slate-400">or</span>
+        <kbd class="px-2 py-1 bg-slate-800 rounded border border-slate-700 text-slate-200">◀ ▲ ▶ ▼</kbd>
+        <span class="text-slate-400">: Move Character</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <kbd class="px-2 py-1 bg-slate-800 rounded border border-slate-700 text-slate-200">SPACEBAR</kbd>
+        <span class="text-slate-400">: Action / Interact / Dialogue</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <kbd class="px-2 py-1 bg-slate-800 rounded border border-slate-700 text-slate-200">ENTER</kbd>
+        <span class="text-slate-400">: OK / Confirm Quiz Choice</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <kbd class="px-2 py-1 bg-slate-800 rounded border border-slate-700 text-slate-200">SHIFT</kbd>
+        <span class="text-slate-400">: Trigger Dial-up Handshake (Select)</span>
+      </div>
+    </div>
+    <div class="mt-4 border-t border-slate-800/50 pt-3 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 font-sans">
+      <span class="mb-2 sm:mb-0">Designed by Antigravity under Gemini Engineering Standards & Software Excellence.</span>
+      <span class="italic">Reboot, reconnect, deploy. No servers were harmed during chiptune handshakes.</span>
+    </div>
+  </footer>
+
+  <!-- Include Core Javascript Libraries in strict execution order -->
+  <script src="questions.js"></script>
+  <script src="sound.js"></script>
+  <script src="sprites.js"></script>
+  <script src="game.js"></script>
+
+  <!-- Canvas Game Launch & Event Handler Hooks -->
+  <script>
+    window.onload = () => {
+      // 1. Core Boot
+      game.init('game-canvas');
+      
+      // 2. Bind sidebar controller actions
+      const themeBtn = document.getElementById('theme-toggle');
+      const themeStatus = document.getElementById('theme-toggle-status');
+      const bgmBtn = document.getElementById('bgm-toggle');
+      const sfxBtn = document.getElementById('sfx-toggle');
+      
+      themeBtn.onclick = () => {
+        game.isGameBoyMode = !game.isGameBoyMode;
+        
+        if (game.isGameBoyMode) {
+          themeStatus.innerText = "Game Boy Classic";
+          themeStatus.className = "font-bold text-yellow-400";
+        } else {
+          themeStatus.innerText = "Color Retro";
+          themeStatus.className = "font-bold text-blue-400";
+        }
+        
+        soundSystem.playWalk();
+      };
+      
+      bgmBtn.onclick = () => {
+        const enabled = !soundSystem.bgmEnabled;
+        soundSystem.toggleBgm(enabled);
+        
+        bgmBtn.innerText = enabled ? "🎵 BGM: ON" : "🎵 BGM: OFF";
+        bgmBtn.className = enabled 
+          ? "px-3 py-1.5 bg-emerald-700/80 border-2 border-emerald-500 text-white rounded font-mono text-xs hover:bg-emerald-600 transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+          : "px-3 py-1.5 bg-zinc-800/80 border-2 border-zinc-700 text-zinc-400 rounded font-mono text-xs hover:bg-zinc-700 transition-all";
+      };
+
+      sfxBtn.onclick = () => {
+        const enabled = !soundSystem.sfxEnabled;
+        soundSystem.toggleSfx(enabled);
+        
+        sfxBtn.innerText = enabled ? "🔊 SFX: ON" : "🔊 SFX: OFF";
+        sfxBtn.className = enabled 
+          ? "px-3 py-1.5 bg-emerald-700/80 border-2 border-emerald-500 text-white rounded font-mono text-xs hover:bg-emerald-600 transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+          : "px-3 py-1.5 bg-zinc-800/80 border-2 border-zinc-700 text-zinc-400 rounded font-mono text-xs hover:bg-zinc-700 transition-all";
+      };
+      
+      // Update statistics percentages based on HP remaining
+      setInterval(() => {
+        const hpPct = document.getElementById('quota-hp-pct');
+        if (hpPct) {
+          if (game.player.quota === 5) hpPct.innerText = "99.999% SLA Uptime";
+          else if (game.player.quota === 4) hpPct.innerText = "99.9% Uptime degraded";
+          else if (game.player.quota === 3) hpPct.innerText = "99.0% Minor Congestion";
+          else if (game.player.quota === 2) hpPct.innerText = "95.0% Severe Throttling";
+          else if (game.player.quota === 1) hpPct.innerText = "50.0% Service Disruption";
+          else hpPct.innerText = "0.00% Outage (Crashed)";
+        }
+      }, 500);
+
+      // Force UI refresh with loaded game states
+      game.updateUI();
+      game.addTextLog("🔌 Core Sandbox initialized. Walk grass to find Cloudmon.");
+    };
+  </script>
+</body>
+</html>
