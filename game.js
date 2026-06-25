@@ -133,7 +133,15 @@ class CloudmonGame {
       substate: 'INTRO', // 'INTRO', 'MENU', 'QUESTION', 'EXPLANATION', 'CAP_SUCCESS', 'CAP_FAIL'
       menuSelection: 0, // 0: Capture, 1: Run
       explanationText: "",
-      correctCount: 0
+      correctCount: 0,
+      cliCharges: {
+        gcloud: 1,
+        kubectl: 1,
+        terraform: 1
+      },
+      cliSelection: 0,
+      logsRevealed: false,
+      eliminatedOptions: []
     };
     
     // Screen Transition effects
@@ -300,13 +308,27 @@ class CloudmonGame {
               this.clickBattleOption(1);
             }
           }
+        } else if (this.battle.substate === 'CLI_MENU') {
+          if (clickY >= 310 && clickY < 400) {
+            const index = Math.floor((clickY - 310) / 22);
+            if (index >= 0 && index < 4) {
+              this.battle.cliSelection = index;
+              this.selectCliCommand();
+            }
+          }
         } else if (this.battle.substate === 'QUESTION') {
           if (clickY >= 320) { // Options grid area
             const col = clickX < 240 ? 0 : 1;
             const row = clickY < 370 ? 0 : 1;
             const index = row * 2 + col;
-            this.battle.selectedOptionIdx = index;
-            this.submitAnswer();
+            
+            // Check if option was eliminated by terraform
+            if (!this.battle.eliminatedOptions || !this.battle.eliminatedOptions.includes(index)) {
+              this.battle.selectedOptionIdx = index;
+              this.submitAnswer();
+            } else {
+              soundSystem.playWrongBuzz();
+            }
           }
         }
       } else if (this.state === 'GAMEOVER' || this.state === 'VICTORY') {
@@ -564,6 +586,10 @@ class CloudmonGame {
     this.battle.substate = 'INTRO';
     this.battle.menuSelection = 0;
     this.battle.correctCount = 0;
+    this.battle.cliCharges = { gcloud: 1, kubectl: 1, terraform: 1 };
+    this.battle.cliSelection = 0;
+    this.battle.logsRevealed = false;
+    this.battle.eliminatedOptions = [];
     delete this.battle.baseCloudmon;
     delete this.battle.evolvedCloudmon;
     
@@ -584,9 +610,95 @@ class CloudmonGame {
     this.battle.baseCloudmon = baseName;
     this.battle.evolvedCloudmon = evolvedName;
     this.battle.correctCount = 0;
+    this.battle.cliCharges = { gcloud: 1, kubectl: 1, terraform: 1 };
+    this.battle.cliSelection = 0;
+    this.battle.logsRevealed = false;
+    this.battle.eliminatedOptions = [];
     
     soundSystem.playEncounter();
     this.addTextLog(`⚙️ MODERNIZATION: Initiated upgrade checklist for ${baseName} -> ${evolvedName}!`);
+  }
+
+  openCliMenu() {
+    this.battle.substate = 'CLI_MENU';
+    this.battle.cliSelection = 0;
+    
+    // Pause timer interval
+    if (this.battle.timerIntervalId) {
+      clearInterval(this.battle.timerIntervalId);
+      this.battle.timerIntervalId = null;
+    }
+  }
+
+  closeCliMenu() {
+    this.battle.substate = 'QUESTION';
+    
+    // Resume timer interval
+    if (this.battle.timerIntervalId) clearInterval(this.battle.timerIntervalId);
+    this.battle.timerIntervalId = setInterval(() => {
+      this.battle.timer--;
+      if (this.battle.timer <= 0) {
+        clearInterval(this.battle.timerIntervalId);
+        this.submitTimeOut();
+      }
+    }, 1000);
+  }
+
+  selectCliCommand() {
+    const sel = this.battle.cliSelection;
+    if (sel === 0) {
+      // gcloud auth login
+      if (this.battle.cliCharges.gcloud > 0) {
+        this.battle.cliCharges.gcloud = 0;
+        this.player.quota = Math.min(this.player.maxQuota, this.player.quota + 1);
+        soundSystem.playCorrectChime();
+        this.updateUI();
+        this.addTextLog(`[CLI] Run: gcloud auth login. Authenticated developer. Restored 1 Quota HP.`);
+      } else {
+        soundSystem.playWrongBuzz();
+      }
+    } else if (sel === 1) {
+      // kubectl logs
+      if (this.battle.cliCharges.kubectl > 0) {
+        this.battle.cliCharges.kubectl = 0;
+        this.battle.logsRevealed = true;
+        this.battle.timer = Math.max(1, this.battle.timer - 5);
+        soundSystem.playCorrectChime();
+        this.addTextLog(`[CLI] Run: kubectl logs. Pulled stdout logs. Answer index highlighted. Cost: 5s.`);
+        this.closeCliMenu();
+      } else {
+        soundSystem.playWrongBuzz();
+      }
+    } else if (sel === 2) {
+      // terraform apply
+      if (this.battle.cliCharges.terraform > 0) {
+        this.battle.cliCharges.terraform = 0;
+        soundSystem.playCorrectChime();
+        
+        // Eliminate 2 wrong choices
+        const q = this.battle.questions[this.battle.currentQuestionIdx];
+        const correct = q.correctAnswer;
+        
+        const wrongIndices = [0, 1, 2, 3].filter(idx => idx !== correct);
+        // Shuffle wrong indices and take 2
+        const shuffled = wrongIndices.sort(() => 0.5 - Math.random());
+        this.battle.eliminatedOptions = shuffled.slice(0, 2);
+        
+        // Ensure selection cursor is not on an eliminated option
+        if (this.battle.eliminatedOptions.includes(this.battle.selectedOptionIdx)) {
+          this.battle.selectedOptionIdx = correct;
+        }
+        
+        this.addTextLog(`[CLI] Run: terraform apply. Orchestrated state: eliminated 2 wrong choices.`);
+        this.closeCliMenu();
+      } else {
+        soundSystem.playWrongBuzz();
+      }
+    } else if (sel === 3) {
+      // BACK
+      soundSystem.playWalk();
+      this.closeCliMenu();
+    }
   }
 
   // --- BATTLE ENGINE & QUIZ FLOW ---
@@ -619,25 +731,43 @@ class CloudmonGame {
           this.state = 'OVERWORLD';
         }
       }
-    } else if (this.battle.substate === 'QUESTION') {
-      // 2x2 Grid selections for multiple choice (A, B, C, D)
-      // A=0 (top-left), B=1 (top-right), C=2 (bottom-left), D=3 (bottom-right)
-      if (key === 'ArrowLeft' || key === 'a') {
-        if (this.battle.selectedOptionIdx % 2 === 1) this.battle.selectedOptionIdx--;
-        soundSystem.playWalk();
-      } else if (key === 'ArrowRight' || key === 'd') {
-        if (this.battle.selectedOptionIdx % 2 === 0) this.battle.selectedOptionIdx++;
-        soundSystem.playWalk();
-      } else if (key === 'ArrowUp' || key === 'w') {
-        if (this.battle.selectedOptionIdx >= 2) this.battle.selectedOptionIdx -= 2;
+    } else if (this.battle.substate === 'CLI_MENU') {
+      if (key === 'ArrowUp' || key === 'w') {
+        this.battle.cliSelection = (this.battle.cliSelection - 1 + 4) % 4;
         soundSystem.playWalk();
       } else if (key === 'ArrowDown' || key === 's') {
-        if (this.battle.selectedOptionIdx < 2) this.battle.selectedOptionIdx += 2;
+        this.battle.cliSelection = (this.battle.cliSelection + 1) % 4;
+        soundSystem.playWalk();
+      } else if (key === 'Enter' || key === ' ') {
+        this.selectCliCommand();
+      } else if (key === 'Escape') {
+        soundSystem.playWalk();
+        this.closeCliMenu();
+      }
+    } else if (this.battle.substate === 'QUESTION') {
+      let newSel = this.battle.selectedOptionIdx;
+      if (key === 'ArrowLeft' || key === 'a') {
+        if (newSel % 2 === 1) newSel--;
+      } else if (key === 'ArrowRight' || key === 'd') {
+        if (newSel % 2 === 0) newSel++;
+      } else if (key === 'ArrowUp' || key === 'w') {
+        if (newSel >= 2) newSel -= 2;
+      } else if (key === 'ArrowDown' || key === 's') {
+        if (newSel < 2) newSel += 2;
+      }
+      
+      // If selection is valid and not eliminated, accept it
+      if (newSel !== this.battle.selectedOptionIdx && 
+          (!this.battle.eliminatedOptions || !this.battle.eliminatedOptions.includes(newSel))) {
+        this.battle.selectedOptionIdx = newSel;
         soundSystem.playWalk();
       }
       
       if (key === 'Enter' || key === ' ') {
         this.submitAnswer();
+      } else if (key === 'Escape') {
+        soundSystem.playWalk();
+        this.openCliMenu();
       }
     } else if (this.battle.substate === 'EXPLANATION') {
       if (key === 'Enter' || key === ' ') {
@@ -1135,6 +1265,47 @@ class CloudmonGame {
       this.ctx.font = '7px "Press Start 2P", monospace';
       this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#aaaaaa";
       this.ctx.fillText("Use Arrows/WASD, Enter to confirm", 40, 410);
+    } else if (this.battle.substate === 'CLI_MENU') {
+      this.ctx.font = '9px "Press Start 2P", monospace';
+      this.ctx.fillText("DEV CONSOLE COMMANDS:", 25, 290);
+      
+      const commands = [
+        `gcloud auth login   [${this.battle.cliCharges.gcloud ? "1" : "0"}]`,
+        `kubectl logs        [${this.battle.cliCharges.kubectl ? "1" : "0"}]`,
+        `terraform apply     [${this.battle.cliCharges.terraform ? "1" : "0"}]`,
+        "BACK TO QUIZ"
+      ];
+      
+      const descList = [
+        "Restores 1 Quota SLA HP point.",
+        "Reveals answer checkmark. (Timer -5s)",
+        "Orchestrates state: eliminates 2 wrong answers.",
+        "Resume and return to the question timer."
+      ];
+      
+      commands.forEach((cmd, index) => {
+        const y = 320 + (index * 22);
+        if (this.battle.cliSelection === index) {
+          this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.15)" : theme.platformBg;
+          this.ctx.fillRect(20, y - 9, 440, 16);
+          this.ctx.strokeStyle = darkColor;
+          this.ctx.lineWidth = 1;
+          this.ctx.strokeRect(20, y - 9, 440, 16);
+          
+          this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : theme.accentColor;
+          this.ctx.font = '8px "Press Start 2P", monospace';
+          this.ctx.fillText(`▶ ${cmd}`, 25, y);
+          
+          // Draw helper description at the very bottom
+          this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#aaaaaa";
+          this.ctx.font = '6px "Press Start 2P", monospace';
+          this.ctx.fillText(descList[index], 25, 410);
+        } else {
+          this.ctx.fillStyle = darkColor;
+          this.ctx.font = '8px "Press Start 2P", monospace';
+          this.ctx.fillText(`  ${cmd}`, 25, y);
+        }
+      });
     } else if (this.battle.substate === 'QUESTION') {
       const q = this.battle.questions[this.battle.currentQuestionIdx];
       
@@ -1157,8 +1328,16 @@ class CloudmonGame {
         const x = 30 + (col * 220);
         const y = optYBase + (row * 35);
         
+        const isEliminated = this.battle.eliminatedOptions && this.battle.eliminatedOptions.includes(index);
+        const isCorrectChoice = index === q.correctAnswer;
+        
+        let label = opt;
+        if (this.battle.logsRevealed && isCorrectChoice) {
+          label = `✔️ ` + label;
+        }
+        
         // Highlights selection
-        if (this.battle.selectedOptionIdx === index) {
+        if (this.battle.selectedOptionIdx === index && !isEliminated) {
           this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.15)" : theme.platformBg;
           this.ctx.fillRect(x - 5, y - 10, 210, 24);
           this.ctx.strokeStyle = darkColor;
@@ -1167,11 +1346,13 @@ class CloudmonGame {
           
           this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : theme.accentColor;
         } else {
-          this.ctx.fillStyle = darkColor;
+          this.ctx.fillStyle = isEliminated 
+            ? (this.isGameBoyMode ? "#306230" : "#555555") 
+            : darkColor;
         }
         
         // Wrap option text in case it's long
-        const optLines = this.wrapText(opt, 28);
+        const optLines = this.wrapText(isEliminated ? "---" : label, 28);
         optLines.forEach((oLine, oIdx) => {
           this.ctx.fillText(oLine, x, y + (oIdx * 10));
         });
@@ -1191,6 +1372,11 @@ class CloudmonGame {
         this.ctx.font = '6px "Press Start 2P", monospace';
         this.ctx.fillText(`💡 HINT: ${q.hint}`, 25, 328);
       }
+
+      // CLI help footer tip
+      this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#888888";
+      this.ctx.font = '5px "Press Start 2P", monospace';
+      this.ctx.fillText("Press B (ESC) for CLI Console", 270, 328);
     } else if (this.battle.substate === 'EXPLANATION') {
       this.ctx.font = '8px "Press Start 2P", monospace';
       
