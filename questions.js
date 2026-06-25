@@ -14,7 +14,8 @@ const questionBank = {
         "D) ORC"
       ],
       correctAnswer: 0, // Capacitor
-      explanation: "Capacitor is BigQuery's proprietary columnar storage format, optimized for analytical queries over massive datasets."
+      explanation: "Capacitor is BigQuery's proprietary columnar storage format, optimized for analytical queries over massive datasets.",
+      hint: "Starts with Cap-, like a component storing charge."
     },
     {
       id: "bq_q2",
@@ -26,7 +27,8 @@ const questionBank = {
         "D) Streaming Buffer"
       ],
       correctAnswer: 0, // Federated Queries / External Tables
-      explanation: "External tables and Federated Queries allow BigQuery to query data directly from external sources without ingestion."
+      explanation: "External tables and Federated Queries allow BigQuery to query data directly from external sources without ingestion.",
+      hint: "Look for external or federated sources."
     },
     {
       id: "bq_q3",
@@ -38,7 +40,8 @@ const questionBank = {
         "D) Size of the source dataset on disk"
       ],
       correctAnswer: 1, // Quantity of data (bytes) processed
-      explanation: "On-demand pricing charges you strictly based on the number of bytes read/scanned by your SQL query."
+      explanation: "On-demand pricing charges you strictly based on the number of bytes read/scanned by your SQL query.",
+      hint: "You pay for the total bytes scanned by your query."
     },
     {
       id: "bq_q4",
@@ -50,7 +53,8 @@ const questionBank = {
         "D) BigQuery Dataframes"
       ],
       correctAnswer: 1, // BigQuery ML (BQML)
-      explanation: "BigQuery ML (BQML) lets you train and run predictive models directly inside BigQuery using standard SQL queries."
+      explanation: "BigQuery ML (BQML) lets you train and run predictive models directly inside BigQuery using standard SQL queries.",
+      hint: "Abbreviated BQML."
     },
     {
       id: "bq_q5",
@@ -62,7 +66,8 @@ const questionBank = {
         "D) By alphabetical order of string columns"
       ],
       correctAnswer: 1, // By ingestion time, date, or integer range columns
-      explanation: "Partitioning tables by date, ingestion time, or integer range reduces the amount of scanned data and query costs."
+      explanation: "Partitioning tables by date, ingestion time, or integer range reduces the amount of scanned data and query costs.",
+      hint: "Partitioning by date, time, or range."
     }
   ],
   "Cloud Spanner": [
@@ -262,7 +267,8 @@ const questionBank = {
         "D) Vertex AI Workbench"
       ],
       correctAnswer: 0, // Vertex AI Studio
-      explanation: "Vertex AI Studio (formerly Generative AI Studio) provides a graphical workspace to test prompts, parameters, and models."
+      explanation: "Vertex AI Studio (formerly Generative AI Studio) provides a graphical workspace to test prompts, parameters, and models.",
+      hint: "A studio workspace for generative models."
     },
     {
       id: "vai_q2",
@@ -274,7 +280,8 @@ const questionBank = {
         "D) Chirp"
       ],
       correctAnswer: 2, // Gemini
-      explanation: "Gemini is Google's state-of-the-art multimodal model family, supporting text, code, images, audio, and video inputs natively."
+      explanation: "Gemini is Google's state-of-the-art multimodal model family, supporting text, code, images, audio, and video inputs natively.",
+      hint: "Starts with G, the exact model you are speaking to right now!"
     },
     {
       id: "vai_q3",
@@ -286,7 +293,8 @@ const questionBank = {
         "D) Reinforcement Learning from Human Feedback (RLHF)"
       ],
       correctAnswer: 0, // RAG
-      explanation: "RAG retrieves relevant passages from secure enterprise document repositories and appends them to prompt contexts for factual grounding."
+      explanation: "RAG retrieves relevant passages from secure enterprise document repositories and appends them to prompt contexts for factual grounding.",
+      hint: "Acronym is RAG (Retrieval-Augmented...)."
     },
     {
       id: "vai_q4",
@@ -298,7 +306,8 @@ const questionBank = {
         "D) Vertex AI Pipelines"
       ],
       correctAnswer: 0, // Feature Store
-      explanation: "Vertex AI Feature Store provides a centralized repository with low-latency serving for ML features across multiple models."
+      explanation: "Vertex AI Feature Store provides a centralized repository with low-latency serving for ML features across multiple models.",
+      hint: "A store dedicated to ML features."
     },
     {
       id: "vai_q5",
@@ -310,7 +319,8 @@ const questionBank = {
         "D) Cloud Pub/Sub Topics"
       ],
       correctAnswer: 0, // Pipelines
-      explanation: "Vertex AI Pipelines helps you orchestrate your ML workflows as a directed acyclic graph (DAG) using Kubeflow or TFX pipelines."
+      explanation: "Vertex AI Pipelines helps you orchestrate your ML workflows as a directed acyclic graph (DAG) using Kubeflow or TFX pipelines.",
+      hint: "ML workflows as directed pipelines."
     }
   ]
 };

@@ -49,26 +49,31 @@ class CloudmonGame {
     this.cloudmonData = {
       "BigQuery": {
         name: "BigQuery",
+        pillar: "AI & Analytics",
         desc: "Serverless data warehouse. Runs SQL queries across petabytes of logs in seconds. Columnar storage architecture allows rapid analytics without infrastructure management.",
         launchYear: "2011"
       },
       "Cloud Spanner": {
         name: "Cloud Spanner",
+        pillar: "Storage & DB",
         desc: "Enterprise relational database. Combines absolute SQL transaction consistency (ACID) with global, horizontal scale-out. Backed by synchronized atomic clocks.",
         launchYear: "2012"
       },
       "Cloud Run": {
         name: "Cloud Run",
+        pillar: "Compute",
         desc: "Fully managed serverless container runtime. Scales containers to zero automatically. Perfect for stateless APIs and microservices without cluster maintenance.",
         launchYear: "2019"
       },
       "GKE": {
         name: "GKE",
+        pillar: "Compute",
         desc: "Google Kubernetes Engine. The gold standard for managed container orchestrations. Features rapid scaling, secure networking, and hands-off Autopilot mode.",
         launchYear: "2015"
       },
       "Vertex AI": {
         name: "Vertex AI",
+        pillar: "AI & Analytics",
         desc: "Unified Machine Learning and GenAI suite. Hosts foundation models like Gemini, coordinates pipelines, stores features, and serves low-latency inferences.",
         launchYear: "2021"
       }
@@ -97,6 +102,31 @@ class CloudmonGame {
     
     // Keys pressed
     this.keys = {};
+
+    // Pillar color configurations for Color Retro mode
+    this.pillarThemes = {
+      "Compute": {
+        accentColor: "#4285f4", // GCP Blue
+        platformBg: "rgba(66, 133, 244, 0.18)",
+        borderCol: "#4285f4",
+        badgeBg: "rgba(66, 133, 244, 0.15)",
+        badgeBorder: "rgba(66, 133, 244, 0.3)"
+      },
+      "Storage & DB": {
+        accentColor: "#34a853", // GCP Green
+        platformBg: "rgba(52, 168, 83, 0.18)",
+        borderCol: "#34a853",
+        badgeBg: "rgba(52, 168, 83, 0.15)",
+        badgeBorder: "rgba(52, 168, 83, 0.3)"
+      },
+      "AI & Analytics": {
+        accentColor: "#a142f4", // Vertex Purple
+        platformBg: "rgba(161, 66, 244, 0.18)",
+        borderCol: "#a142f4",
+        badgeBg: "rgba(161, 66, 244, 0.15)",
+        badgeBorder: "rgba(161, 66, 244, 0.3)"
+      }
+    };
     
     // Dialogue box variables
     this.dialogueText = "";
@@ -215,7 +245,7 @@ class CloudmonGame {
 
       if (this.state === 'BATTLE') {
         if (this.battle.substate === 'INTRO' || this.battle.substate === 'EXPLANATION' || 
-            this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL') {
+            this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL' || this.battle.substate === 'CON_RECOVERY') {
           // Click anywhere in dialog box to progress
           if (clickY >= 260) {
             this.handleBattleInput('Enter');
@@ -548,7 +578,7 @@ class CloudmonGame {
           }
         }
       }
-    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL') {
+    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL' || this.battle.substate === 'CON_RECOVERY') {
       if (key === 'Enter' || key === ' ') {
         soundSystem.playWalk();
         
@@ -594,7 +624,7 @@ class CloudmonGame {
     } else if (this.battle.substate === 'EXPLANATION') {
       // Progress explanation
       this.handleBattleInput('Enter');
-    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL') {
+    } else if (this.battle.substate === 'CAP_SUCCESS' || this.battle.substate === 'CAP_FAIL' || this.battle.substate === 'CON_RECOVERY') {
       this.handleBattleInput('Enter');
     }
   }
@@ -603,7 +633,12 @@ class CloudmonGame {
     this.battle.substate = 'QUESTION';
     this.battle.currentQuestionIdx = index;
     this.battle.selectedOptionIdx = 0;
-    this.battle.timer = 15;
+    
+    const enemyName = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[enemyName];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+    const maxTimer = enemyPillar === "Compute" ? 18 : 15;
+    this.battle.timer = maxTimer;
     
     // Reset timer interval
     if (this.battle.timerIntervalId) clearInterval(this.battle.timerIntervalId);
@@ -657,6 +692,17 @@ class CloudmonGame {
   }
 
   captureFailure() {
+    const name = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[name];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+
+    if (enemyPillar === "Storage & DB" && Math.random() < 0.33) {
+      this.battle.substate = 'CON_RECOVERY';
+      soundSystem.playCorrectChime();
+      this.addTextLog(`🔄 HA_CONSENSUS: Read/Write failure on ${name} recovered automatically via secondary replica consensus! Saved SLA quota.`);
+      return;
+    }
+
     this.battle.substate = 'CAP_FAIL';
     soundSystem.playEscapeCrash();
     
@@ -664,7 +710,6 @@ class CloudmonGame {
     this.player.quota--;
     this.updateUI();
     
-    const name = this.battle.cloudmon;
     this.addTextLog(`🛑 EXCEPTION: ${name} deployment crashed! Decreased Quota HP. Core HP: ${this.player.quota}/5`);
   }
 
@@ -700,29 +745,47 @@ class CloudmonGame {
         const isCaptured = this.cloudDex[name];
         
         const card = document.createElement('div');
-        card.className = `p-3 rounded-lg border-2 font-mono transition-all cursor-pointer select-none ${
-          isCaptured 
-            ? 'bg-green-50/80 border-green-600/30 hover:shadow-md hover:bg-green-100/90 dark:bg-green-950/20 dark:border-green-500/40 dark:hover:bg-green-950/40' 
-            : 'bg-gray-100/50 border-dashed border-gray-300 dark:bg-zinc-900/40 dark:border-zinc-800'
-        }`;
+        const pillar = item.pillar || "Compute";
+        
+        let cardBgClasses = 'bg-gray-100/50 border-dashed border-gray-300 dark:bg-zinc-900/40 dark:border-zinc-800';
+        let textNameClasses = 'text-gray-400 dark:text-zinc-600';
+        let badgeClasses = 'bg-gray-200 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500';
+        let italicTextClasses = 'text-gray-400 dark:text-zinc-600';
+
+        if (isCaptured) {
+          if (pillar === "Compute") {
+            cardBgClasses = 'bg-blue-50/80 border-blue-600/30 hover:shadow-md hover:bg-blue-100/90 dark:bg-blue-950/20 dark:border-blue-500/40 dark:hover:bg-blue-950/40';
+            textNameClasses = 'text-blue-800 dark:text-blue-400';
+            badgeClasses = 'bg-blue-200 text-blue-800 dark:bg-blue-950 dark:text-blue-300';
+            italicTextClasses = 'text-blue-700 dark:text-blue-400';
+          } else if (pillar === "Storage & DB") {
+            cardBgClasses = 'bg-emerald-50/80 border-emerald-600/30 hover:shadow-md hover:bg-emerald-100/90 dark:bg-emerald-950/20 dark:border-emerald-500/40 dark:hover:bg-emerald-950/40';
+            textNameClasses = 'text-emerald-800 dark:text-emerald-400';
+            badgeClasses = 'bg-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+            italicTextClasses = 'text-emerald-700 dark:text-emerald-400';
+          } else if (pillar === "AI & Analytics") {
+            cardBgClasses = 'bg-purple-50/80 border-purple-600/30 hover:shadow-md hover:bg-purple-100/90 dark:bg-purple-950/20 dark:border-purple-500/40 dark:hover:bg-purple-950/40';
+            textNameClasses = 'text-purple-800 dark:text-purple-400';
+            badgeClasses = 'bg-purple-200 text-purple-800 dark:bg-purple-950 dark:text-purple-300';
+            italicTextClasses = 'text-purple-700 dark:text-purple-400';
+          }
+        }
+
+        card.className = `p-3 rounded-lg border-2 font-mono transition-all cursor-pointer select-none ${cardBgClasses}`;
         
         card.innerHTML = `
           <div class="flex items-center justify-between mb-1">
-            <span class="font-bold text-sm ${isCaptured ? 'text-green-800 dark:text-green-400' : 'text-gray-400 dark:text-zinc-600'}">
-              ${isCaptured ? '📂 ' + name : '❓ [ENCRYPTED]'}
+            <span class="font-bold text-sm ${textNameClasses}">
+              ${isCaptured ? '📂 ' + name + ' (' + pillar + ')' : '❓ [ENCRYPTED]'}
             </span>
-            <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${
-              isCaptured 
-                ? 'bg-green-200 text-green-800 dark:bg-green-950 dark:text-green-300' 
-                : 'bg-gray-200 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500'
-            }">
+            <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${badgeClasses}">
               ${isCaptured ? 'Active' : 'Unstable'}
             </span>
           </div>
           <p class="text-[11px] leading-relaxed ${isCaptured ? 'text-gray-700 dark:text-zinc-300' : 'text-gray-400 dark:text-zinc-600'}">
             ${isCaptured ? item.desc : 'Walk through floppy disk grass in the overworld to detect this product and verify its capability parameters.'}
           </p>
-          ${isCaptured ? `<div class="text-[9px] text-green-700 dark:text-green-400 mt-2 italic">Standard sandbox launch: Gen90 (${item.launchYear})</div>` : ''}
+          ${isCaptured ? `<div class="text-[9px] ${italicTextClasses} mt-2 italic">Standard sandbox launch: Gen90 (${item.launchYear})</div>` : ''}
         `;
         
         // Add click listener to show captured details on main screen if they click
@@ -847,16 +910,22 @@ class CloudmonGame {
   }
 
   renderBattle() {
+    const enemyName = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[enemyName];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+    const theme = this.pillarThemes[enemyPillar] || this.pillarThemes["Compute"];
+
     const bg = this.isGameBoyMode ? "#9bbc0f" : "#1a1a24";
     const darkColor = this.isGameBoyMode ? "#0f380f" : "#ffffff";
-    const accentColor = this.isGameBoyMode ? "#306230" : "#4285f4";
+    const accentColor = this.isGameBoyMode ? "#306230" : theme.accentColor;
+    const platformColor = this.isGameBoyMode ? "rgba(48, 98, 48, 0.2)" : theme.platformBg;
     
     // 1. Draw solid background
     this.ctx.fillStyle = bg;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
     // 2. Draw Battle Platforms (light circles)
-    this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.2)" : "rgba(255, 255, 255, 0.05)";
+    this.ctx.fillStyle = platformColor;
     this.ctx.beginPath();
     this.ctx.ellipse(360, 130, 90, 30, 0, 0, 2 * Math.PI);
     this.ctx.fill();
@@ -871,7 +940,6 @@ class CloudmonGame {
     drawPixelSprite(this.ctx, 'playerUp', 70, 160, pScale, this.isGameBoyMode);
     
     // 4. Draw Wild Cloudmon sprite (top-right)
-    const enemyName = this.battle.cloudmon;
     drawPixelSprite(this.ctx, enemyName, 310, 40, pScale, this.isGameBoyMode);
     
     // 5. Draw HUD - Enemy Status Box (Top-Left)
@@ -894,7 +962,7 @@ class CloudmonGame {
       this.ctx.arc(125 + (i * 14), 48, 4, 0, 2 * Math.PI);
       if (i < this.battle.currentQuestionIdx) {
         // completed
-        this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#34a853";
+        this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : accentColor;
       } else {
         this.ctx.fillStyle = this.isGameBoyMode ? "#9bbc0f" : "#444444";
       }
@@ -927,9 +995,14 @@ class CloudmonGame {
   }
 
   renderBattleDialogue() {
+    const enemyName = this.battle.cloudmon;
+    const enemyData = this.cloudmonData[enemyName];
+    const enemyPillar = enemyData ? enemyData.pillar : "Compute";
+    const theme = this.pillarThemes[enemyPillar] || this.pillarThemes["Compute"];
+
     const darkColor = this.isGameBoyMode ? "#0f380f" : "#ffffff";
     const lightBg = this.isGameBoyMode ? "#e0f8cf" : "#1a1a24";
-    const borderCol = this.isGameBoyMode ? "#0f380f" : "#4285f4";
+    const borderCol = this.isGameBoyMode ? "#0f380f" : theme.borderCol;
     
     // Outer Border
     this.ctx.fillStyle = this.isGameBoyMode ? "#8bac0f" : "#14141e";
@@ -990,13 +1063,13 @@ class CloudmonGame {
         
         // Highlights selection
         if (this.battle.selectedOptionIdx === index) {
-          this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.15)" : "rgba(66, 133, 244, 0.15)";
+          this.ctx.fillStyle = this.isGameBoyMode ? "rgba(48, 98, 48, 0.15)" : theme.platformBg;
           this.ctx.fillRect(x - 5, y - 10, 210, 24);
           this.ctx.strokeStyle = darkColor;
           this.ctx.lineWidth = 1;
           this.ctx.strokeRect(x - 5, y - 10, 210, 24);
           
-          this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#4285f4";
+          this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : theme.accentColor;
         } else {
           this.ctx.fillStyle = darkColor;
         }
@@ -1011,15 +1084,36 @@ class CloudmonGame {
       // Timer bar rendering
       this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#aaaaaa";
       this.ctx.fillRect(25, 315, 430, 4);
-      const timerPct = this.battle.timer / 15;
-      this.ctx.fillStyle = this.battle.timer <= 4 ? "#ea4335" : (this.isGameBoyMode ? "#306230" : "#4285f4");
+      const maxTimer = enemyPillar === "Compute" ? 18 : 15;
+      const timerPct = this.battle.timer / maxTimer;
+      this.ctx.fillStyle = this.battle.timer <= 4 ? "#ea4335" : (this.isGameBoyMode ? "#306230" : theme.accentColor);
       this.ctx.fillRect(25, 315, 430 * timerPct, 4);
+
+      // AI Specialty Hint Display
+      if (enemyPillar === "AI & Analytics" && q.hint) {
+        this.ctx.fillStyle = this.isGameBoyMode ? "#306230" : "#a142f4";
+        this.ctx.font = '6px "Press Start 2P", monospace';
+        this.ctx.fillText(`💡 HINT: ${q.hint}`, 25, 328);
+      }
     } else if (this.battle.substate === 'EXPLANATION') {
       this.ctx.font = '8px "Press Start 2P", monospace';
       
       const lines = this.wrapText(this.battle.explanationText, 52);
       lines.slice(0, 10).forEach((line, index) => {
         this.ctx.fillText(line, 25, 285 + (index * 13));
+      });
+      
+      this.renderBlinkingArrow(440, 400);
+    } else if (this.battle.substate === 'CON_RECOVERY') {
+      this.ctx.font = '10px "Press Start 2P", monospace';
+      this.ctx.fillStyle = this.isGameBoyMode ? "#0f380f" : "#34a853";
+      this.ctx.fillText("HA REPLICA CONSENSUS!", 25, 295);
+      
+      this.ctx.fillStyle = darkColor;
+      this.ctx.font = '8px "Press Start 2P", monospace';
+      const lines = this.wrapText(`A critical deployment write exception occurred. However, multi-zone replica consensus automatically recovered the state! Quota SLA saved.`, 50);
+      lines.forEach((line, index) => {
+        this.ctx.fillText(line, 25, 320 + (index * 13));
       });
       
       this.renderBlinkingArrow(440, 400);
