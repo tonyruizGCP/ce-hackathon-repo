@@ -94,14 +94,72 @@ You can play completely using the **tactile physical buttons on the 3D Game Boy 
 
 ```
 ce-hackathon/
-├── index.html       # Handheld Game Boy Color mockup, responsive layout & controllers
-├── style.css        # (Optional) Tailored visual tokens (mostly Tailwind inline utilities used)
-├── game.js          # Main loop, camera coordinates, battle states, and movement controllers
-├── sprites.js       # Procedural 16x16 8-bit sprite drawings and dual-theme palettes
-├── questions.js     # Multiple choice curriculum pools with detailed product explanations
-├── sound.js         # Custom Web Audio API dual-channel synthesizer and SFX wave generators
-└── README.md        # Technical specifications and walkthrough guidance
+├── index.html              # Handheld Game Boy Color mockup, responsive layout & controllers
+├── game.js                 # Main loop, camera coordinates, battle states, and movement controllers
+├── sprites.js              # Procedural 16x16 8-bit sprite drawings and dual-theme palettes
+├── questions.js            # Multiple choice curriculum pools with detailed product explanations
+├── sound.js                # Custom Web Audio API dual-channel synthesizer and SFX wave generators
+├── Dockerfile              # Production Nginx image specification for Cloud Run
+├── default.conf.template   # Dynamic Nginx server configuration template with strict CSP rules
+├── deploy_to_cloud_run.sh  # Complete GCP Cloud Run automated shell script
+└── README.md               # Technical specifications and walkthrough guidance
 ```
+
+---
+
+## ☁️ Cloud Run Deployment (Containerization Pipeline)
+
+"Cloudmon: Retrofit the 90s" is fully containerized and deployable to Google Cloud Run in minutes. The deployment setup packages the application into an ultra-lightweight production Nginx container that dynamically adapts to Cloud Run's requirements.
+
+### 📦 Deployment Artifacts
+
+1. **[Dockerfile](file:///Users/tonyruiz/agy_demo/ce-hackathon/Dockerfile):** 
+   - Uses `nginx:alpine` as the base image for a minimal and secure attack surface.
+   - Copies all static web files into Nginx's default public directory `/usr/share/nginx/html/`.
+   - Uses the official `envsubst` integration inside Alpine Nginx to inject environment variables on startup.
+2. **[default.conf.template](file:///Users/tonyruiz/agy_demo/ce-hackathon/gcp/default.conf.template):**
+   - Maps Nginx's listen port to `${PORT}`, allowing seamless integration with Cloud Run's dynamic port assignment.
+   - Configures high-performance gzip compression to reduce latency.
+   - Enforces **Zero-Trust Security Headers**, including:
+     - `X-Frame-Options: DENY` (prevents clickjacking)
+     - `X-Content-Type-Options: nosniff` (prevents MIME sniffing)
+     - `Referrer-Policy: strict-origin-when-cross-origin`
+     - `Content-Security-Policy` (CSP) restricting resource fetching to trusted Google Fonts and Tailwind CDN endpoints.
+3. **[deploy_to_cloud_run.sh](file:///Users/tonyruiz/agy_demo/ce-hackathon/gcp/deploy_to_cloud_run.sh):**
+   - A fully automated bash script carrying out:
+     - Project target configuration (`gcloud config set project`)
+     - API enablement (Artifact Registry, Cloud Build, and Cloud Run APIs)
+     - Artifact Registry creation for Docker images
+     - Serverless compilation upload using Google Cloud Build (`gcloud builds submit`)
+     - Public deployment to Google Cloud Run (`gcloud run deploy --allow-unauthenticated`)
+
+### 🚀 Step-by-Step Deployment Guide
+
+Follow these steps to deploy the application directly to your GCP project:
+
+#### 1. Prerequisites
+Ensure you have the Google Cloud CLI (`gcloud`) installed and authenticated locally:
+```bash
+# Login to your Google account
+gcloud auth login
+
+# Set your application default credentials (ADC) if necessary
+gcloud auth application-default login
+```
+
+#### 2. Configure project variables
+Open [deploy_to_cloud_run.sh](file:///Users/tonyruiz/agy_demo/ce-hackathon/gcp/deploy_to_cloud_run.sh) and customize variables if deploying to a different project or region:
+- `PROJECT_ID`: Default set to `ce-hackathon-500518`
+- `REGION`: Default set to `us-central1`
+- `SERVICE_NAME`: Default set to `cloudmon-game`
+
+#### 3. Execute the deployment script
+Run the shell script directly from your workspace directory:
+```bash
+bash gcp/deploy_to_cloud_run.sh
+```
+
+Upon a successful run, Cloud Build will build the Nginx container, store it in Artifact Registry, and Cloud Run will spin up the container and output a public HTTPS Service URL where your retro Cloudmon RPG is ready to be played!
 
 ---
 
