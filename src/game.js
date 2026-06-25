@@ -165,6 +165,10 @@ class CloudmonGame {
   setupListeners() {
     // Keyboard listeners
     window.addEventListener('keydown', (e) => {
+      // Prevent browser default actions (such as scrolling) for game control keys
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " ", "Spacebar"].includes(e.key)) {
+        e.preventDefault();
+      }
       this.keys[e.key] = true;
       this.handleKeyDown(e.key);
     });
@@ -207,6 +211,7 @@ class CloudmonGame {
     // Canvas click detection for direct touch / mouse interactions
     this.canvas.addEventListener('click', (e) => {
       e.preventDefault();
+      window.focus(); // Explicitly focus the window to capture keyboard controls instantly
       soundSystem.resumeContext();
 
       const rect = this.canvas.getBoundingClientRect();
