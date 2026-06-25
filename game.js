@@ -41,9 +41,25 @@ class CloudmonGame {
       y: 0
     };
     
-    // Encounterable Cloudmon Registry
-    this.cloudmonList = ["BigQuery", "Cloud Spanner", "Cloud Run", "GKE", "Vertex AI"];
+    // Encounterable Cloudmon Registry (All possible Dex entries)
+    this.cloudmonList = [
+      "Compute Engine", "GKE", "GKE Autopilot",
+      "Cloud SQL", "Cloud Spanner",
+      "Cloud Functions", "Cloud Run",
+      "BigQuery", "Vertex AI"
+    ];
     
+    // Wild services that spawn in overworld
+    this.wildCloudmonList = ["Compute Engine", "Cloud SQL", "Cloud Functions", "BigQuery", "Vertex AI"];
+
+    // Evolution chain mapping
+    this.evolutionMap = {
+      "Compute Engine": "GKE",
+      "GKE": "GKE Autopilot",
+      "Cloud SQL": "Cloud Spanner",
+      "Cloud Functions": "Cloud Run"
+    };
+
     // Player Inventory / Cloud-Dex (Captured Cloudmon)
     this.cloudDex = {}; // format: { "BigQuery": true, "GKE": false }
     this.cloudmonData = {
@@ -76,6 +92,30 @@ class CloudmonGame {
         pillar: "AI & Analytics",
         desc: "Unified Machine Learning and GenAI suite. Hosts foundation models like Gemini, coordinates pipelines, stores features, and serves low-latency inferences.",
         launchYear: "2021"
+      },
+      "Compute Engine": {
+        name: "Compute Engine",
+        pillar: "Compute",
+        desc: "Secure, customizable virtual machine instances in Google's global data centers. Offers fine-grained control over OS, CPU, RAM, and block storage.",
+        launchYear: "2012"
+      },
+      "GKE Autopilot": {
+        name: "GKE Autopilot",
+        pillar: "Compute",
+        desc: "Fully managed Kubernetes cluster deployment mode. Google manages node provisioning, scaling, health, and security upgrades automatically.",
+        launchYear: "2020"
+      },
+      "Cloud SQL": {
+        name: "Cloud SQL",
+        pillar: "Storage & DB",
+        desc: "Fully managed relational database service supporting MySQL, PostgreSQL, and SQL Server with automatic patching, backups, and failover replication.",
+        launchYear: "2011"
+      },
+      "Cloud Functions": {
+        name: "Cloud Functions",
+        pillar: "Compute",
+        desc: "Event-driven serverless Function-as-a-Service (FaaS). Executes modular code snippets dynamically in response to web requests or cloud event streams.",
+        launchYear: "2017"
       }
     };
     
@@ -497,9 +537,20 @@ class CloudmonGame {
   startBattle() {
     this.state = 'BATTLE';
     
-    // Choose a random Cloudmon that hasn't been captured yet, or random if all captured
-    let available = this.cloudmonList.filter(m => !this.cloudDex[m]);
-    if (available.length === 0) available = this.cloudmonList;
+    // Choose a random wild Cloudmon that hasn't been captured/evolved yet
+    let available = this.wildCloudmonList.filter(m => {
+      if (m === "Compute Engine") {
+        return !this.cloudDex["Compute Engine"] && !this.cloudDex["GKE"] && !this.cloudDex["GKE Autopilot"];
+      }
+      if (m === "Cloud SQL") {
+        return !this.cloudDex["Cloud SQL"] && !this.cloudDex["Cloud Spanner"];
+      }
+      if (m === "Cloud Functions") {
+        return !this.cloudDex["Cloud Functions"] && !this.cloudDex["Cloud Run"];
+      }
+      return !this.cloudDex[m];
+    });
+    if (available.length === 0) available = this.wildCloudmonList;
     
     const chosenName = available[Math.floor(Math.random() * available.length)];
     
@@ -513,8 +564,29 @@ class CloudmonGame {
     this.battle.substate = 'INTRO';
     this.battle.menuSelection = 0;
     this.battle.correctCount = 0;
+    delete this.battle.baseCloudmon;
+    delete this.battle.evolvedCloudmon;
     
     this.addTextLog(`🔥 ENCOUNTER: Wild ${chosenName} appeared on the network port!`);
+  }
+
+  startEvolutionBattle(baseName, evolvedName) {
+    this.state = 'BATTLE';
+    
+    // Load the special evolution question from evolutionQuestions
+    const q = evolutionQuestions[baseName];
+    
+    this.battle.cloudmon = evolvedName; // we show the evolved version facing them
+    this.battle.questions = [q]; // only 1 question for evolution
+    this.battle.currentQuestionIdx = 0;
+    this.battle.selectedOptionIdx = 0;
+    this.battle.substate = 'EVO_INTRO';
+    this.battle.baseCloudmon = baseName;
+    this.battle.evolvedCloudmon = evolvedName;
+    this.battle.correctCount = 0;
+    
+    soundSystem.playEncounter();
+    this.addTextLog(`⚙️ MODERNIZATION: Initiated upgrade checklist for ${baseName} -> ${evolvedName}!`);
   }
 
   // --- BATTLE ENGINE & QUIZ FLOW ---
@@ -524,6 +596,11 @@ class CloudmonGame {
       if (key === 'Enter' || key === ' ') {
         this.battle.substate = 'MENU';
         soundSystem.playWalk();
+      }
+    } else if (this.battle.substate === 'EVO_INTRO') {
+      if (key === 'Enter' || key === ' ') {
+        soundSystem.playWalk();
+        this.startQuizQuestion(0);
       }
     } else if (this.battle.substate === 'MENU') {
       if (key === 'ArrowUp' || key === 'ArrowDown' || key === 'w' || key === 's') {
@@ -621,6 +698,9 @@ class CloudmonGame {
     } else if (this.battle.substate === 'INTRO') {
       this.battle.substate = 'MENU';
       soundSystem.playWalk();
+    } else if (this.battle.substate === 'EVO_INTRO') {
+      soundSystem.playWalk();
+      this.startQuizQuestion(0);
     } else if (this.battle.substate === 'EXPLANATION') {
       // Progress explanation
       this.handleBattleInput('Enter');
@@ -771,6 +851,9 @@ class CloudmonGame {
           }
         }
 
+        const nextEvolution = this.evolutionMap[name];
+        const canEvolve = isCaptured && nextEvolution && !this.cloudDex[nextEvolution];
+
         card.className = `p-3 rounded-lg border-2 font-mono transition-all cursor-pointer select-none ${cardBgClasses}`;
         
         card.innerHTML = `
@@ -778,9 +861,12 @@ class CloudmonGame {
             <span class="font-bold text-sm ${textNameClasses}">
               ${isCaptured ? '📂 ' + name + ' (' + pillar + ')' : '❓ [ENCRYPTED]'}
             </span>
-            <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${badgeClasses}">
-              ${isCaptured ? 'Active' : 'Unstable'}
-            </span>
+            <div class="flex gap-2 items-center">
+              ${canEvolve ? `<button class="evolve-btn px-2 py-0.5 bg-yellow-500 text-slate-900 border border-yellow-600 rounded text-[9px] font-bold hover:bg-yellow-400 transition-all font-sans">MODERNIZE</button>` : ''}
+              <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${badgeClasses}">
+                ${isCaptured ? 'Active' : 'Unstable'}
+              </span>
+            </div>
           </div>
           <p class="text-[11px] leading-relaxed ${isCaptured ? 'text-gray-700 dark:text-zinc-300' : 'text-gray-400 dark:text-zinc-600'}">
             ${isCaptured ? item.desc : 'Walk through floppy disk grass in the overworld to detect this product and verify its capability parameters.'}
@@ -789,10 +875,20 @@ class CloudmonGame {
         `;
         
         // Add click listener to show captured details on main screen if they click
-        if (isCaptured) {
-          card.onclick = () => {
+        card.onclick = () => {
+          if (isCaptured) {
             this.addTextLog(`Examing database manifest: ${name}. Standard specifications active.`);
-          };
+          }
+        };
+
+        if (canEvolve) {
+          const btn = card.querySelector('.evolve-btn');
+          if (btn) {
+            btn.onclick = (e) => {
+              e.stopPropagation(); // prevent card click
+              this.startEvolutionBattle(name, nextEvolution);
+            };
+          }
         }
         
         listContainer.appendChild(card);
@@ -1117,23 +1213,44 @@ class CloudmonGame {
       });
       
       this.renderBlinkingArrow(440, 400);
-    } else if (this.battle.substate === 'CAP_SUCCESS') {
+    } else if (this.battle.substate === 'EVO_INTRO') {
       this.ctx.font = '10px "Press Start 2P", monospace';
-      this.ctx.fillText("SUCCESS! DEPLOYED!", 25, 295);
+      this.ctx.fillText("UPGRADE IN PROGRESS...", 25, 295);
       
       this.ctx.font = '8px "Press Start 2P", monospace';
-      const lines = this.wrapText(`${this.battle.cloudmon} has compiled successfully. Product capability standards stored in Cloud-Dex.`, 50);
+      const lines = this.wrapText(`Modernizing ${this.battle.baseCloudmon} to ${this.battle.evolvedCloudmon}. Ready to check architectural constraints update?`, 50);
+      lines.forEach((line, index) => {
+        this.ctx.fillText(line, 25, 320 + (index * 13));
+      });
+      
+      this.renderBlinkingArrow(440, 400);
+    } else if (this.battle.substate === 'CAP_SUCCESS') {
+      const isEvo = this.battle.baseCloudmon !== undefined;
+      this.ctx.font = '10px "Press Start 2P", monospace';
+      this.ctx.fillText(isEvo ? "MODERNIZE SUCCESS!" : "SUCCESS! DEPLOYED!", 25, 295);
+      
+      this.ctx.font = '8px "Press Start 2P", monospace';
+      const text = isEvo 
+        ? `${this.battle.baseCloudmon} evolved into ${this.battle.evolvedCloudmon}! Modernization updates successfully deployed to Cloud-Dex.`
+        : `${this.battle.cloudmon} has compiled successfully. Product capability standards stored in Cloud-Dex.`;
+      
+      const lines = this.wrapText(text, 50);
       lines.forEach((line, index) => {
         this.ctx.fillText(line, 25, 320 + (index * 13));
       });
       
       this.renderBlinkingArrow(440, 400);
     } else if (this.battle.substate === 'CAP_FAIL') {
+      const isEvo = this.battle.baseCloudmon !== undefined;
       this.ctx.font = '10px "Press Start 2P", monospace';
-      this.ctx.fillText("SANDBOX CRASHED!", 25, 295);
+      this.ctx.fillText(isEvo ? "MODERNIZE FAILED!" : "SANDBOX CRASHED!", 25, 295);
       
       this.ctx.font = '8px "Press Start 2P", monospace';
-      const lines = this.wrapText(`Deployment compilation failed. Connection lost on terminal port. Quota HP reduced by 1. System reboot requested.`, 50);
+      const text = isEvo 
+        ? `Architecture upgrade to ${this.battle.evolvedCloudmon} failed. Upgrade scripts rolled back. Quota HP reduced by 1.`
+        : `Deployment compilation failed. Connection lost on terminal port. Quota HP reduced by 1. System reboot requested.`;
+      
+      const lines = this.wrapText(text, 50);
       lines.forEach((line, index) => {
         this.ctx.fillText(line, 25, 320 + (index * 13));
       });
@@ -1221,8 +1338,8 @@ class CloudmonGame {
     this.ctx.fillStyle = light;
     this.ctx.font = '8px "Press Start 2P", monospace';
     const lines = [
-      "Successfully deployed all 5 Cloudmon engines:",
-      "- BigQuery, Spanner, GKE, Cloud Run, and Vertex AI.",
+      "Successfully deployed all 9 Cloudmon architecture services:",
+      "- VMs, Databases, GKE, Serverless, and AI engines.",
       "",
       "You have demonstrated elite product capability parameters,",
       "resolving transactional consensus, scaling, and database",
